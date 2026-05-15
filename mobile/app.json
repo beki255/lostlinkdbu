@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "LostLink DBU",
+    "slug": "lostlink",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0057B8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "edu.dbu.lostlink"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0057B8"
+      },
+      "package": "edu.dbu.lostlink"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "app": {
+    "name": "LostLink DBU",
+    "tagline": "Find what you've lost. Return what you've found.",
+    "description": "University Lost & Found Management System"
+  },
+  "nav": {
+    "home": "Home",
+    "report": "Report Item",
+    "search": "Search Items",
+    "dashboard": "Dashboard",
+    "admin": "Admin",
+    "security": "Security",
+    "profile": "Profile",
+    "logout": "Logout",
+    "login": "Login",
+    "register": "Register"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Create Account",
+    "email": "Email Address",
+    "password": "Password",
+    "name": "Full Name",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "otpSent": "Verification code sent to your email",
+    "verifyOtp": "Verify Email",
+    "resetPassword": "Reset Password",
+    "sendOtp": "Send OTP"
+  },
+  "item": {
+    "reportLost": "Report Lost Item",
+    "reportFound": "Report Found Item",
+    "title": "Item Title",
+    "description": "Description",
+    "category": "Category",
+    "location": "Location",
+    "date": "Date",
+    "images": "Images",
+    "tags": "Tags",
+    "lost": "Lost",
+    "found": "Found",
+    "status": "Status",
+    "open": "Open",
+    "claimed": "Claimed",
+    "resolved": "Resolved",
+    "closed": "Closed",
+    "noItems": "No items found"
+  },
+  "claim": {
+    "submit": "Submit Claim",
+    "description": "Claim Description",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "underReview": "Under Review"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "search": "Search",
+    "filter": "Filter",
+    "noData": "No data available",
+    "confirmDelete": "Are you sure you want to delete?",
+    "success": "Success"
+  },
+  "role": {
+    "user": "User",
+    "security": "Security Officer",
+    "admin": "Administrator"
+  }
+}

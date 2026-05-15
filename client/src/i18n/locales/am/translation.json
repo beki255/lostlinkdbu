@@ -1,0 +1,80 @@
+{
+  "app": {
+    "name": "LostLink DBU",
+    "tagline": "ያጣህውን ፈልግ። ያገኘህውን መልስ።",
+    "description": "የዩኒቨርሲቲ የጠፉ እና የተገኙ እቃዎች አስተዳደር ስርዓት"
+  },
+  "nav": {
+    "home": "መነሻ",
+    "report": "ሪፖርት አድርግ",
+    "search": "ፈልግ",
+    "dashboard": "ዳሽቦርድ",
+    "admin": "አስተዳዳሪ",
+    "security": "ደህንነት",
+    "profile": "መገለጫ",
+    "logout": "ውጣ",
+    "login": "ግባ",
+    "register": "ተመዝገብ"
+  },
+  "auth": {
+    "login": "ግባ",
+    "register": "መለያ ፍጠር",
+    "email": "ኢሜይል",
+    "password": "የይለፍ ቃል",
+    "name": "ሙሉ ስም",
+    "confirmPassword": "የይለፍ ቃል አረጋግጥ",
+    "forgotPassword": "የይለፍ ቃል ረሳህ?",
+    "noAccount": "መለያ የለህም?",
+    "hasAccount": "መለያ አለህ?",
+    "otpSent": "የማረጋገጫ ኮድ ወደ ኢሜይልህ ተልኳል",
+    "verifyOtp": "ኢሜይል አረጋግጥ",
+    "resetPassword": "የይለፍ ቃል ቀይር",
+    "sendOtp": "OTP ላክ"
+  },
+  "item": {
+    "reportLost": "የጠፋ እቃ ሪፖርት አድርግ",
+    "reportFound": "የተገኘ እቃ ሪፖርት አድርግ",
+    "title": "የእቃው ርዕስ",
+    "description": "መግለጫ",
+    "category": "ምድብ",
+    "location": "ቦታ",
+    "date": "ቀን",
+    "images": "ምስሎች",
+    "tags": "መለያዎች",
+    "lost": "ጠፍቷል",
+    "found": "ተገኝቷል",
+    "status": "ሁኔታ",
+    "open": "ክፍት",
+    "claimed": "ተጠይቋል",
+    "resolved": "ተፈትቷል",
+    "closed": "ተዘግቷል",
+    "noItems": "ምንም እቃ አልተገኘም"
+  },
+  "claim": {
+    "submit": "የይገባኛል ጥያቄ አቅርብ",
+    "description": "የይገባኛል ጥያቄ መግለጫ",
+    "pending": "በመጠባበቅ ላይ",
+    "approved": "ጸድቋል",
+    "rejected": "ውድቅ ሆኗል",
+    "underReview": "በግምገማ ላይ"
+  },
+  "common": {
+    "loading": "በመጫን ላይ...",
+    "error": "ስህተት ተከስቷል",
+    "save": "አስቀምጥ",
+    "cancel": "ሰርዝ",
+    "delete": "ሰርዝ",
+    "edit": "አስተካክል",
+    "view": "ተመልከት",
+    "search": "ፈልግ",
+    "filter": "አጣራ",
+    "noData": "ምንም ውሂብ የለም",
+    "confirmDelete": "መሰረዝ መሆኑን እርግጠኛ ነህ?",
+    "success": "ተሳክቷል"
+  },
+  "role": {
+    "user": "ተጠቃሚ",
+    "security": "የደህንነት ኃላፊ",
+    "admin": "አስተዳዳሪ"
+  }
+}
