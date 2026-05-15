@@ -17,6 +17,9 @@ const authenticate = async (req, res, next) => {
     if (!user || user.isDeleted) {
       throw new AppError('User not found or deactivated.', 401);
     }
+    if (!user.isVerified) {
+      throw new AppError('Please verify your email before accessing this resource. Check your inbox for the verification code.', 403);
+    }
 
     req.user = user;
     next();

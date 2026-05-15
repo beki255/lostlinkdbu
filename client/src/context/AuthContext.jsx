@@ -43,8 +43,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async (data) => {
-    const res = await authApi.register(data);
-    return res;
+    await authApi.register(data);
   }, []);
 
   const logout = useCallback(() => {

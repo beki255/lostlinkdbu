@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import Toast from 'react-native-toast-message';
 
+WebBrowser.maybeCompleteAuthSession();
+
 export default function LoginScreen({ navigation }) {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
+    clientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+    selectAccount: true,
+  });
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -26,7 +35,15 @@ export default function LoginScreen({ navigation }) {
   };
 
   const handleGoogleLogin = async () => {
-    Toast.show({ type: 'info', text1: 'Google Sign-In', text2: 'Configure GoogleService-Info.plist for native integration.' });
+    try {
+      const result = await googlePromptAsync();
+      if (result?.type === 'success') {
+        await googleLogin(result.params.id_token);
+        Toast.show({ type: 'success', text1: 'Welcome!' });
+      }
+    } catch (err) {
+      Toast.show({ type: 'error', text1: 'Google Login Failed', text2: err.message });
+    }
   };
 
   return (
@@ -54,8 +71,11 @@ export default function LoginScreen({ navigation }) {
           <View style={styles.dividerLine} />
         </View>
 
-        <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin}>
-          <Text style={styles.googleButtonText}>Continue with Google</Text>
+        <TouchableOpacity style={[styles.googleButton, !googleRequest && styles.googleButtonDisabled]}
+          onPress={handleGoogleLogin} disabled={!googleRequest}>
+          <Text style={[styles.googleButtonText, !googleRequest && styles.googleButtonTextDisabled]}>
+            {googleRequest ? 'Continue with Google' : 'Loading...'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.link}>
@@ -81,7 +101,9 @@ const styles = StyleSheet.create({
   dividerLine: { flex: 1, height: 1, backgroundColor: '#E5E7EB' },
   dividerText: { color: '#9CA3AF', fontSize: 13, marginHorizontal: 12 },
   googleButton: { backgroundColor: '#fff', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
+  googleButtonDisabled: { opacity: 0.5 },
   googleButtonText: { color: '#374151', fontSize: 16, fontWeight: '600' },
+  googleButtonTextDisabled: { color: '#9CA3AF' },
   link: { alignItems: 'center', marginTop: 20 },
   linkText: { color: '#0057B8', fontSize: 14 },
 });

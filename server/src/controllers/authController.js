@@ -16,7 +16,8 @@ const generateToken = (userId, role) => {
 
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -33,11 +34,27 @@ exports.register = async (req, res, next) => {
       expiresAt: new Date(Date.now() + config.otp.expiresIn),
     });
 
-    await sendEmail({
+    if (config.env === 'development') {
+      console.log('');
+      console.log('[DEV] OTP for ' + email + ': ' + otp);
+      console.log('');
+    }
+
+    const emailSent = await sendEmail({
       to: email,
       subject: 'Verify Your LostLink Account',
-      html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 5 minutes.</p>`,
+      otp,
+      type: 'email_verification',
     });
+
+    if (!emailSent) {
+      await User.findByIdAndDelete(user._id);
+      await OTP.deleteMany({ email, type: 'email_verification' });
+      throw new AppError(
+        'Unable to send verification email. Please check your email address or try again later.',
+        500
+      );
+    }
 
     await AuditLog.create({
       action: 'USER_REGISTERED',
@@ -49,7 +66,7 @@ exports.register = async (req, res, next) => {
       userAgent: req.get('user-agent'),
     });
 
-    sendCreated(res, { userId: user._id }, 'Account created. Please verify your email.');
+    sendCreated(res, { userId: user._id }, 'Account created. Verification email sent.');
   } catch (error) {
     next(error);
   }
@@ -57,7 +74,8 @@ exports.register = async (req, res, next) => {
 
 exports.verifyEmail = async (req, res, next) => {
   try {
-    const { email, otp } = req.body;
+    const { otp } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     const otpRecord = await OTP.findOne({
       email,
@@ -84,7 +102,8 @@ exports.verifyEmail = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     const user = await User.findOne({ email, isDeleted: false }).select('+passwordHash');
     if (!user) {
@@ -94,6 +113,10 @@ exports.login = async (req, res, next) => {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       throw new AppError('Invalid email or password.', 401);
+    }
+
+    if (!user.isVerified) {
+      throw new AppError('Please verify your email before logging in. Check your inbox for the verification code.', 403);
     }
 
     const token = generateToken(user._id, user.role);
@@ -119,7 +142,7 @@ exports.login = async (req, res, next) => {
 
 exports.forgotPassword = async (req, res, next) => {
   try {
-    const { email } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     const user = await User.findOne({ email, isDeleted: false });
     if (!user) {
@@ -130,15 +153,26 @@ exports.forgotPassword = async (req, res, next) => {
     await OTP.create({
       email,
       otp,
-      type: 'password_reset',
+      type: 'email_verification',
       expiresAt: new Date(Date.now() + config.otp.expiresIn),
     });
 
-    await sendEmail({
+    if (config.env === 'development') {
+      console.log('');
+      console.log('[DEV] OTP for ' + email + ': ' + otp);
+      console.log('');
+    }
+
+    const emailSent = await sendEmail({
       to: email,
       subject: 'Reset Your LostLink Password',
-      html: `<p>Your password reset code is: <strong>${otp}</strong></p><p>This code expires in 5 minutes.</p>`,
+      otp,
+      type: 'password_reset',
     });
+
+    if (!emailSent && config.env === 'production') {
+      return sendSuccess(res, null, 'If the email exists, an OTP has been sent.');
+    }
 
     sendSuccess(res, null, 'If the email exists, an OTP has been sent.');
   } catch (error) {
@@ -148,7 +182,8 @@ exports.forgotPassword = async (req, res, next) => {
 
 exports.resetPassword = async (req, res, next) => {
   try {
-    const { email, otp, password } = req.body;
+    const { otp, password } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     const otpRecord = await OTP.findOne({
       email,
@@ -199,7 +234,7 @@ exports.getMe = async (req, res, next) => {
 
 exports.resendOtp = async (req, res, next) => {
   try {
-    const { email } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     const user = await User.findOne({ email, isDeleted: false });
     if (!user) throw new NotFoundError('User');
@@ -218,11 +253,16 @@ exports.resendOtp = async (req, res, next) => {
       expiresAt: new Date(Date.now() + config.otp.expiresIn),
     });
 
-    await sendEmail({
+    const emailSent = await sendEmail({
       to: email,
       subject: 'Verify Your LostLink Account',
-      html: `<p>Your new verification code is: <strong>${otp}</strong></p><p>This code expires in 5 minutes.</p>`,
+      otp,
+      type: 'email_verification',
     });
+
+    if (!emailSent) {
+      throw new AppError('Unable to send verification email. Please try again later.', 500);
+    }
 
     sendSuccess(res, null, 'A new OTP has been sent to your email.');
   } catch (error) {

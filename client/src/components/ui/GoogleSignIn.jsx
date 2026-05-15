@@ -5,13 +5,12 @@ import toast from 'react-hot-toast';
 import { FcGoogle } from 'react-icons/fc';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+let gsiInitialized = false;
 
 export default function GoogleSignIn({ mode = 'login' }) {
   const { googleLogin } = useAuth();
   const navigate = useNavigate();
   const btnRef = useRef(null);
-  const initialized = useRef(false);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
   const [scriptError, setScriptError] = useState(false);
 
   const handleCredentialResponse = useCallback(async (response) => {
@@ -25,7 +24,26 @@ export default function GoogleSignIn({ mode = 'login' }) {
   }, [googleLogin, mode, navigate]);
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || initialized.current) return;
+    if (!GOOGLE_CLIENT_ID) return;
+
+    const renderButton = () => {
+      if (btnRef.current && typeof window.google?.accounts?.id !== 'undefined') {
+        window.google.accounts.id.renderButton(btnRef.current, {
+          type: 'standard',
+          shape: 'rectangular',
+          theme: 'outline',
+          text: mode === 'login' ? 'signin_with' : 'signup_with',
+          size: 'large',
+          width: btnRef.current.offsetWidth || 320,
+          logo_alignment: 'center',
+        });
+      }
+    };
+
+    if (gsiInitialized) {
+      renderButton();
+      return;
+    }
 
     const initGIS = () => {
       if (typeof window.google === 'undefined') {
@@ -40,20 +58,8 @@ export default function GoogleSignIn({ mode = 'login' }) {
         auto_select: false,
       });
 
-      if (btnRef.current) {
-        window.google.accounts.id.renderButton(btnRef.current, {
-          type: 'standard',
-          shape: 'rectangular',
-          theme: 'outline',
-          text: mode === 'login' ? 'signin_with' : 'signup_with',
-          size: 'large',
-          width: btnRef.current.offsetWidth || 320,
-          logo_alignment: 'center',
-        });
-      }
-
-      initialized.current = true;
-      setScriptLoaded(true);
+      gsiInitialized = true;
+      renderButton();
     };
 
     const existingScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');

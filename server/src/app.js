@@ -12,6 +12,7 @@ const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const { globalLimiter } = require('./middleware/rateLimiter');
 const { setupChatSocket } = require('./sockets/chatHandler');
+const { getTransporter } = require('./services/emailService');
 
 const authRoutes = require('./routes/authRoutes');
 const itemRoutes = require('./routes/itemRoutes');
@@ -86,6 +87,14 @@ setupChatSocket(io);
 // Start server
 const startServer = async () => {
   await connectDB();
+
+  // Eagerly initialize email transport
+  try {
+    await getTransporter();
+  } catch (err) {
+    console.error('[Email] Startup initialization failed:', err.message);
+  }
+
   server.listen(config.port, () => {
     console.log(`LostLink API running on port ${config.port} in ${config.env} mode`);
     console.log(`WebSocket server ready for chat connections`);

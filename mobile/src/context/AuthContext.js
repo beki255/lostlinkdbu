@@ -14,6 +14,13 @@ export function AuthProvider({ children }) {
     return res.data.user;
   }, []);
 
+  const googleLogin = useCallback(async (credential) => {
+    const res = await authAPI.googleLogin(credential);
+    setToken(res.data.token);
+    setUser(res.data.user);
+    return res.data.user;
+  }, []);
+
   const register = useCallback(async (data) => {
     return authAPI.register(data);
   }, []);
@@ -24,7 +31,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ user, token, login, googleLogin, register, logout, isAuthenticated: !!token }}>
       {children}
     </AuthContext.Provider>
   );
