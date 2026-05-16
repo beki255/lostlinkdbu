@@ -278,7 +278,7 @@ export default function Landing() {
                   </div>
                   <div>
                     <div className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Email Us</div>
-                    <div className="text-lg font-bold text-gray-900 dark:text-white">{content.contact.email}</div>
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">lostlinkdbu@gmail.com</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
