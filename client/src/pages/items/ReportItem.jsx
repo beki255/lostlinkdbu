@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { items as itemsApi } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -32,10 +33,13 @@ const validateForm = (form, files) => {
 export default function ReportItem() {
   const navigate = useNavigate();
   const { i18n } = useTranslation();
+  const { user } = useAuth();
+  const requiredProfileFields = ['name', 'phone', 'department', 'studentId'];
+  const profileIncomplete = requiredProfileFields.some((f) => !user?.[f]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: '', description: '', category: '', type: 'lost', location: '',
-    tags: '', dateOccurred: '',
+    tags: '', dateOccurred: '', serialNumber: '', ownerName: '',
   });
   const [errors, setErrors] = useState({});
   const [files, setFiles] = useState([]);
@@ -49,6 +53,14 @@ export default function ReportItem() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Ensure profile is complete before submitting
+    const required = ['name', 'phone', 'department', 'studentId'];
+    const missing = required.filter((f) => !user?.[f]);
+    if (missing.length > 0) {
+      toast.error('Please complete your profile before reporting items.');
+      navigate('/profile');
+      return;
+    }
     const validation = validateForm(form, files);
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
@@ -92,38 +104,44 @@ export default function ReportItem() {
 
   return (
     <div className="page-container max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
         {form.type === 'lost' ? 'Report Lost Item' : 'Report Found Item'}
       </h1>
+
+      {!user || ['name', 'phone', 'department', 'studentId'].some((f) => !user?.[f]) ? (
+        <div className="card mb-6">
+          <p className="text-sm text-gray-700 dark:text-gray-200">You must complete your profile before reporting an item. Please <button onClick={() => navigate('/profile')} className="text-primary-600 dark:text-primary-300 font-medium">update your profile</button> to continue.</p>
+        </div>
+      ) : null}
 
       <div className="card">
         <div className="flex gap-2 mb-6">
           <button onClick={() => { setForm({ ...form, type: 'lost' }); if (errors.type) setErrors({ ...errors, type: '' }); }}
-            className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all ${form.type === 'lost' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+            className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all ${form.type === 'lost' ? 'bg-red-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
             I Lost Something
           </button>
           <button onClick={() => { setForm({ ...form, type: 'found' }); if (errors.type) setErrors({ ...errors, type: '' }); }}
-            className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all ${form.type === 'found' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+            className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all ${form.type === 'found' ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
             I Found Something
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Title *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Title *</label>
             <input type="text" value={form.title} onChange={(e) => setField('title', e.target.value)}
               className={inputClass('title')} placeholder="e.g., Black HP Laptop" />
             {errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Description *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Description *</label>
             <textarea value={form.description} onChange={(e) => setField('description', e.target.value)}
               className={inputClass('description')} rows={4} placeholder="Describe the item in detail..." />
             {errors.description && <p className="mt-1 text-sm text-red-500">{errors.description}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Category *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Category *</label>
               <select value={form.category} onChange={(e) => setField('category', e.target.value)}
                 className={inputClass('category')}>
                 <option value="">Select...</option>
@@ -137,45 +155,61 @@ export default function ReportItem() {
               {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Location *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Location *</label>
               <input type="text" value={form.location} onChange={(e) => setField('location', e.target.value)}
                 className={inputClass('location')} placeholder="e.g., Library, 2nd Floor" />
               {errors.location && <p className="mt-1 text-sm text-red-500">{errors.location}</p>}
             </div>
           </div>
+          {form.category === 'electronics' && (
+            <div className="grid grid-cols-2 gap-4 p-4 bg-primary-50 dark:bg-primary-900/10 rounded-xl border border-primary-100 dark:border-primary-900/30">
+              <div>
+                <label className="block text-sm font-medium text-primary-900 dark:text-primary-100 mb-1.5">Serial Number</label>
+                <input type="text" value={form.serialNumber} onChange={(e) => setField('serialNumber', e.target.value)}
+                  className="input-field border-primary-200 focus:ring-primary-500" placeholder="e.g. S/N 123456789" />
+                <p className="mt-1 text-[10px] text-primary-600">Strongly recommended for electronics</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary-900 dark:text-primary-100 mb-1.5">Owner Name (on device)</label>
+                <input type="text" value={form.ownerName} onChange={(e) => setField('ownerName', e.target.value)}
+                  className="input-field border-primary-200 focus:ring-primary-500" placeholder="e.g. Full Name" />
+                <p className="mt-1 text-[10px] text-primary-600">If registered with security</p>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Date</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Date</label>
               <input type="date" value={form.dateOccurred} onChange={(e) => setForm({ ...form, dateOccurred: e.target.value })}
                 className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tags</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Tags</label>
               <input type="text" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })}
                 className="input-field" placeholder="comma, separated" />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Images {form.type === 'found' && <span className="text-red-500">*</span>}
             </label>
             <div className={`border-2 border-dashed rounded-xl p-6 text-center transition cursor-pointer ${
-              errors.images ? 'border-red-400 bg-red-50' : 'border-gray-300 hover:border-primary-400'
+              errors.images ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 dark:hover:border-primary-400'
             }`}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); setFiles([...files, ...Array.from(e.dataTransfer.files)]); if (errors.images) setErrors({ ...errors, images: '' }); }}>
-              <FiUpload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-              <p className="text-sm text-gray-500">Drag & drop images here, or <span className="text-primary-600 font-medium">browse</span></p>
+              <FiUpload className="w-8 h-8 mx-auto text-gray-400 dark:text-gray-500 mb-2" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">Drag & drop images here, or <span className="text-primary-600 dark:text-primary-400 font-medium">browse</span></p>
               <input type="file" multiple accept="image/*" className="hidden"
                 onChange={(e) => { setFiles([...files, ...Array.from(e.target.files)]); if (errors.images) setErrors({ ...errors, images: '' }); }} id="file-upload" />
               <button type="button" onClick={() => document.getElementById('file-upload').click()}
-                className="mt-3 text-sm text-primary-600 font-medium">Choose Files</button>
+                className="mt-3 text-sm text-primary-600 dark:text-primary-400 font-medium">Choose Files</button>
             </div>
             {errors.images && <p className="mt-1 text-sm text-red-500">{errors.images}</p>}
             {files.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {Array.from(files).map((f, i) => (
-                  <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-sm">
+                  <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm">
                     {f.name}
                     <button type="button" onClick={() => { const updated = files.filter((_, idx) => idx !== i); setFiles(updated); if (form.type === 'found' && updated.length === 0) setErrors({ ...errors, images: 'An image is required when reporting a found item.' }); }}>
                       <FiX className="w-4 h-4 text-gray-500 hover:text-red-500" />
@@ -185,7 +219,7 @@ export default function ReportItem() {
               </div>
             )}
           </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full">
+          <button type="submit" disabled={loading || profileIncomplete} className="btn-primary w-full">
             {loading ? 'Submitting...' : `Report ${form.type === 'lost' ? 'Lost' : 'Found'} Item`}
           </button>
         </form>

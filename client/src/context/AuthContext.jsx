@@ -58,9 +58,20 @@ export function AuthProvider({ children }) {
     return res.data.user;
   }, []);
 
+  const changePassword = useCallback(async (data) => {
+    const res = await authApi.changePassword(data);
+    return res;
+  }, []);
+
+  const completeAuth = useCallback((token, userData) => {
+    setToken(token);
+    setUser(userData);
+    setUserState(userData);
+  }, []);
+
   return (
     <AuthContext.Provider value={{
-      user, loading, login, googleLogin, register, logout, updateProfile,
+      user, loading, login, googleLogin, register, logout, updateProfile, changePassword, completeAuth,
       isAuthenticated: !!user,
       isAdmin: user?.role === 'admin',
       isSecurity: user?.role === 'security',

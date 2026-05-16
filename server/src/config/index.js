@@ -27,9 +27,9 @@ const config = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   },
 
-  gemini: {
-    apiKey: process.env.GEMINI_API_KEY,
-    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+  groq: {
+    apiKey: process.env.GROQ_API_KEY,
+    model: process.env.GROQ_MODEL || 'groq-1.0',
   },
 
   upload: {
@@ -39,7 +39,7 @@ const config = {
 
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000,
-    max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+    max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 1000,
   },
 
   cloudinary: {

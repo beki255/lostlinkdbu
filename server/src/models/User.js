@@ -30,6 +30,11 @@ const userSchema = new mongoose.Schema({
     },
     default: 'user',
   },
+  status: {
+    type: String,
+    enum: ['active', 'banned'],
+    default: 'active',
+  },
   isVerified: {
     type: Boolean,
     default: false,

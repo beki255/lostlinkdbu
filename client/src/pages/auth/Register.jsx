@@ -1,141 +1,214 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useTranslation } from 'react-i18next';
+import { FiUser, FiMail, FiLock, FiArrowRight, FiCheckCircle, FiShield, FiBook } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
 import toast from 'react-hot-toast';
-import { FiUser, FiMail, FiLock, FiRefreshCw } from 'react-icons/fi';
-import GoogleSignIn from '../../components/ui/GoogleSignIn';
 
 export default function Register() {
-  const { t } = useTranslation();
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState('register');
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
-  const [otp, setOtp] = useState('');
-  const [resending, setResending] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
 
-  const handleRegister = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      await register(form);
-      toast.success('OTP sent to your email!');
-      setStep('verify');
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
+    if (formData.password !== formData.confirmPassword) {
+      return toast.error('Passwords do not match');
     }
-  };
-
-  const handleVerify = async (e) => {
-    e.preventDefault();
     setLoading(true);
     try {
-      const { auth } = await import('../../services/api');
-      await auth.verifyEmail({ email: form.email, otp });
-      toast.success('Email verified! Please login.');
+      await register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+      toast.success('Account created! Please verify your email.');
       navigate('/login');
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResendOtp = async () => {
-    setResending(true);
-    try {
-      const { auth } = await import('../../services/api');
-      await auth.resendOtp({ email: form.email });
-      toast.success('New OTP sent to your email!');
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setResending(false);
-    }
-  };
+  return (
+    <div className="min-h-screen h-screen flex items-center justify-center relative overflow-hidden bg-dbu-navy">
+      {/* Dynamic Background */}
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-transform duration-[12000ms] hover:scale-110"
+        style={{ 
+          backgroundImage: "url('https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2070&auto=format&fit=crop')",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-tl from-dbu-navy/90 via-dbu-navy/70 to-transparent backdrop-blur-[3px]"></div>
+      </div>
 
-  if (step === 'verify') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-blue-100 px-4">
-        <div className="w-full max-w-md">
-          <div className="card text-center">
-            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FiMail className="w-8 h-8 text-primary-600" />
+      {/* Decorative Elements */}
+      <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-dbu-blue/10 rounded-full blur-[150px] -ml-64 -mt-64 z-0 animate-pulse"></div>
+      <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-dbu-gold/5 rounded-full blur-[150px] -mr-64 -mb-64 z-0"></div>
+
+      <div className="relative z-10 w-full max-w-[1200px] px-6 grid lg:grid-cols-2 gap-16 items-center">
+        {/* Left Side: Brand & Visuals */}
+        <div className="hidden lg:block space-y-10 animate-fade-in">
+          <Link to="/" className="inline-flex items-center gap-4 group">
+            <img src="/dbuicon.png" alt="DBU Logo" className="h-20 w-auto group-hover:scale-110 transition-transform duration-500" />
+            <div className="flex flex-col">
+              <span className="text-4xl font-black text-white tracking-tighter uppercase leading-none">LostLink</span>
+              <span className="text-dbu-blue font-bold tracking-[0.2em] text-sm uppercase">Debre Berhan University</span>
             </div>
-            <h2 className="text-xl font-bold mb-2">{t('auth.verifyOtp')}</h2>
-            <p className="text-gray-600 mb-6">{t('auth.otpSent')}: {form.email}</p>
-            <form onSubmit={handleVerify} className="space-y-4">
-              <input type="text" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                className="input-field text-center text-2xl tracking-widest" placeholder="000000" required />
-              <button type="submit" disabled={loading || otp.length !== 6} className="btn-primary w-full">
-                {loading ? 'Verifying...' : t('auth.verifyOtp')}
-              </button>
-              <button type="button" onClick={handleResendOtp} disabled={resending}
-                className="w-full text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center justify-center gap-1">
-                <FiRefreshCw className={`w-4 h-4 ${resending ? 'animate-spin' : ''}`} />
-                {resending ? 'Resending...' : 'Resend OTP'}
-              </button>
-            </form>
+          </Link>
+          <div className="space-y-8">
+            <h2 className="text-5xl font-black text-white leading-tight">
+              Start your journey <br />
+              <span className="text-dbu-gold text-6xl">with us today.</span>
+            </h2>
+            <div className="grid grid-cols-1 gap-6">
+              {[
+                { icon: FiShield, title: "Secure Platform", desc: "Your data and items are protected by campus-grade security." },
+                { icon: FiCheckCircle, title: "Verified Identity", desc: "Every user is verified via their official university email." }
+              ].map((item, i) => (
+                <div key={i} className="flex gap-5 items-start bg-white/5 p-6 rounded-[2rem] border border-white/5 backdrop-blur-sm">
+                  <div className="w-12 h-12 bg-dbu-blue/20 rounded-2xl flex items-center justify-center text-dbu-blue shrink-0">
+                    <item.icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white">{item.title}</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-blue-100 px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center space-x-2">
-            <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">L</span>
-            </div>
-            <span className="font-bold text-2xl text-gray-900">{t('app.name')}</span>
-          </Link>
-          <p className="mt-2 text-gray-600">{t('auth.register')}</p>
-        </div>
-        <div className="card">
-          <form onSubmit={handleRegister} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('auth.name')}</label>
-              <div className="relative">
-                <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="input-field pl-10" placeholder="John Doe" required />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('auth.email')}</label>
-              <div className="relative">
-                <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="input-field pl-10" placeholder="you@university.edu" required />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('auth.password')}</label>
-              <div className="relative">
-                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="password" value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="input-field pl-10" placeholder="Min 6 characters" required minLength={6} />
-              </div>
-            </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full">
-              {loading ? 'Creating account...' : t('auth.register')}
-            </button>
-          </form>
-          <GoogleSignIn mode="register" />
-          <p className="mt-4 text-center text-sm text-gray-600">
-            {t('auth.hasAccount')}{' '}
-            <Link to="/login" className="text-primary-600 font-medium hover:text-primary-700">
-              {t('auth.login')}
+        {/* Right Side: Register Card */}
+        <div className="w-full max-w-lg mx-auto">
+          {/* Mobile Logo */}
+          <div className="lg:hidden text-center mb-10">
+            <Link to="/" className="inline-flex items-center gap-4">
+              <img src="/dbuicon.png" alt="DBU Logo" className="h-12 w-auto" />
+              <span className="text-2xl font-black text-white tracking-tighter uppercase">LostLink</span>
             </Link>
-          </p>
+          </div>
+
+          <div className="bg-white/10 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] p-8 md:p-12 shadow-2xl border border-white/20 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-dbu-blue/10 rounded-full blur-3xl -ml-16 -mt-16"></div>
+            
+            <div className="mb-10 text-center">
+              <h1 className="text-4xl font-black text-white mb-3 tracking-tight">Create Account</h1>
+              <p className="text-slate-300 font-medium text-lg">Join the campus recovery community</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                    <FiUser className="w-3 h-3 text-dbu-blue" /> Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-4 focus:ring-dbu-blue/20 focus:border-dbu-blue transition-all"
+                    placeholder="John Doe"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                    <FiMail className="w-3 h-3 text-dbu-blue" /> Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-4 focus:ring-dbu-blue/20 focus:border-dbu-blue transition-all"
+                    placeholder="name@dbu.edu.et"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                    <FiLock className="w-3 h-3 text-dbu-blue" /> Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-4 focus:ring-dbu-blue/20 focus:border-dbu-blue transition-all"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                    <FiCheckCircle className="w-3 h-3 text-dbu-blue" /> Confirm
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-4 focus:ring-dbu-blue/20 focus:border-dbu-blue transition-all"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-dbu-blue hover:bg-dbu-blue/90 text-white py-4.5 rounded-2xl font-black text-xl shadow-2xl shadow-dbu-blue/30 flex items-center justify-center gap-3 group transition-all active:scale-[0.98] mt-4"
+              >
+                {loading ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Creating Account...</span>
+                  </div>
+                ) : (
+                  <>
+                    Join the Community <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-8">
+              <div className="relative flex items-center justify-center mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10"></div>
+                </div>
+                <span className="relative px-4 bg-transparent text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Or Register with</span>
+              </div>
+
+              <button
+                type="button"
+                className="w-full bg-white text-slate-900 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl hover:bg-slate-50 transition-all active:scale-[0.98]"
+              >
+                <FcGoogle className="w-6 h-6" />
+                Google Account
+              </button>
+            </div>
+
+            <div className="mt-10 text-center">
+              <p className="text-slate-400 font-medium">
+                Already a member?{' '}
+                <Link to="/login" className="text-white font-black hover:text-dbu-gold transition-colors border-b-2 border-dbu-blue/20 ml-2">
+                  Sign In Now
+                </Link>
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

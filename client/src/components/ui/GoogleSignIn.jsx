@@ -51,14 +51,16 @@ export default function GoogleSignIn({ mode = 'login' }) {
         return;
       }
 
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredentialResponse,
-        cancel_on_tap_outside: false,
-        auto_select: false,
-      });
+      if (!gsiInitialized) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleCredentialResponse,
+          cancel_on_tap_outside: false,
+          auto_select: false,
+        });
+        gsiInitialized = true;
+      }
 
-      gsiInitialized = true;
       renderButton();
     };
 

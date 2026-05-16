@@ -1,16 +1,87 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const config = require('../config');
+
+const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 class AIService {
   constructor() {
-    const apiKey = config.gemini.apiKey;
-    if (!apiKey) {
-      console.warn('[Gemini] No API key configured. AI matching will be unavailable.');
-      this.genAI = null;
+    this.apiKey = config.groq.apiKey;
+    this.modelName = config.groq.model || 'mixtral-8x7b-32768';
+    if (!this.apiKey) {
+      console.warn('[Groq] No API key configured. AI matching will be unavailable.');
+      this.enabled = false;
       return;
     }
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.modelName = config.gemini.model;
+    this.enabled = true;
+  }
+
+  async _callGroq(prompt, options = {}) {
+    if (!this.enabled) return null;
+
+    try {
+      const payload = {
+        model: this.modelName,
+        messages: [
+          { role: 'system', content: 'You are a precise matching engine for a Lost and Found system.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: options.temperature ?? 0.1,
+        max_tokens: options.maxOutputTokens ?? 1024,
+      };
+
+      const response = await fetch(GROQ_CHAT_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unable to read error body');
+        throw new Error(`[Groq] API error ${response.status}: ${errorText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('[Groq] Error:', error.message);
+      return null;
+    }
+  }
+
+  _extractTextFromResponse(responseJson) {
+    if (!responseJson) return '';
+    if (responseJson.choices?.[0]?.message?.content) {
+      return responseJson.choices[0].message.content.trim();
+    }
+    return JSON.stringify(responseJson);
+  }
+
+  _normalizeJsonText(text) {
+    if (!text || typeof text !== 'string') return '';
+    let cleaned = text.trim();
+    cleaned = cleaned.replace(/```(?:json)?/gi, '');
+    cleaned = cleaned.replace(/\r\n/g, '\n');
+    const match = cleaned.match(/\{[\s\S]*\}$/);
+    if (match) {
+      cleaned = match[0];
+    }
+    return cleaned.trim();
+  }
+
+  async _callMatcher(prompt) {
+    const result = await this._callGroq(prompt, { temperature: 0.1, maxOutputTokens: 1200, topP: 0.95 });
+    if (!result) return null;
+
+    const text = this._extractTextFromResponse(result);
+    if (!text) return null;
+
+    try {
+      return JSON.parse(this._normalizeJsonText(text));
+    } catch (error) {
+      console.error('[Groq] Parse error:', error.message, 'response:', text);
+      return null;
+    }
   }
 
   _buildPrompt(sourceItem, targetItems, direction = 'lost-to-found') {
@@ -18,107 +89,188 @@ class AIService {
     const sourceLabel = isLostToFound ? 'Lost' : 'Found';
     const targetLabel = isLostToFound ? 'Found' : 'Lost';
 
-    const targetList = targetItems.map((item, i) => `
-${targetLabel} Item ${i + 1}:
-  Title: ${item.title}
-  Description: ${item.description || 'N/A'}
-  Category: ${item.category || 'N/A'}
-  Location: ${item.location || 'N/A'}
-  Tags: ${(item.tags || []).join(', ') || 'N/A'}
-  Date: ${item.dateOccurred ? new Date(item.dateOccurred).toISOString().split('T')[0] : 'N/A'}
-  Images: ${(item.images || []).length > 0 ? item.images.join(', ') : 'None'}`).join('\n');
+    const targetList = targetItems.map((item, i) => {
+      const tags = (item.tags && Array.isArray(item.tags)) ? item.tags.join(', ') : 'N/A';
+      const images = (item.images && Array.isArray(item.images) && item.images.length > 0)
+        ? `${item.images.length} image(s)`
+        : 'None';
+      return `\n${targetLabel} Item ${i + 1}:\n  Title: ${item.title || 'N/A'}\n  Description: ${item.description || 'N/A'}\n  Category: ${item.category || 'N/A'}\n  Location: ${item.location || 'N/A'}\n  Tags: ${tags}\n  Date: ${item.dateOccurred ? new Date(item.dateOccurred).toISOString().split('T')[0] : 'N/A'}\n  Images: ${images}`;
+    }).join('\n');
 
-    return `You are an AI item matching assistant for a lost and found system. Perform a detailed semantic analysis comparing the following ${sourceLabel.toLowerCase()} item against each ${targetLabel.toLowerCase()} item.
+    const sourceDate = sourceItem.dateOccurred
+      ? new Date(sourceItem.dateOccurred).toISOString().split('T')[0]
+      : 'N/A';
+    const sourceTags = (sourceItem.tags && Array.isArray(sourceItem.tags))
+      ? sourceItem.tags.join(', ')
+      : 'N/A';
+    const sourceImages = (sourceItem.images && Array.isArray(sourceItem.images) && sourceItem.images.length > 0)
+      ? `${sourceItem.images.length} image(s)`
+      : 'None';
 
-For each pair, analyze these dimensions semantically:
-1. **Title & Description**: Understand meaning, not just keywords. Consider synonyms, context, and specific details (brand, color, model, size, material).
-2. **Category**: Are the categories compatible or related?
-3. **Location**: How close are the locations? Consider campus areas, buildings, landmarks.
-4. **Time**: How close are the dates? Items lost/found within similar timeframes are more likely to match.
-5. **Tags/Keywords**: Overlap in descriptive tags.
+    return `You are an expert AI system for matching lost and found items. Your job is to carefully compare items and identify STRONG MATCHES when they describe the SAME PHYSICAL OBJECT.
 
-RULES:
-- Assign a score 0-100 based on overall semantic similarity
-- ONLY include items with score >= 85 (high confidence match)
-- Provide a clear, specific explanation of WHY they match — mention exact similarities (e.g., "both are blue iPhone 14s lost in the library cafe")
-- If they don't match well, DO NOT include them in results
-- Be strict: only high-confidence matches should be returned
+CRITICAL MATCHING STRATEGY:
+When two items contain very similar or identical information (same brand, model, color, location, and date), they are describing the SAME item - score them 87-95%.
+Only exclude matches if items are CLEARLY different (different categories, different colors, completely different locations).
+
+DETAILED MATCHING PROCESS:
+
+STEP 1: EXTRACT KEY IDENTIFIERS
+From each item description, extract:
+- Brand/Manufacturer (Apple, Samsung, Nike, etc.)
+- Color(s) - ALL colors mentioned (blue, black, silver, red, etc.)
+- Model/Type (iPhone 14 Pro, AirPods Max, backpack, watch, keys, etc.)
+- Size (13-inch, large, XL, 15cm, etc.)
+- Material (leather, aluminum, plastic, nylon, fabric, metal, etc.)
+- Distinctive features (stickers, scratches, dents, engravings, patches, logos, patterns, custom marks)
+- Condition (new, used, worn, pristine, damaged, cracked, broken, bent, wet, etc.)
+- Image presence and visual cues (if images are available, note that the item has photos and use the image count as supporting evidence)
+- Serial numbers or identifying marks if mentioned (e.g., "S/N", "Serial", "Service Tag")
+- Owner names or initials if mentioned on the item
+
+CRITICAL SYNONYM RULES:
+- Treat "PC", "Computer", and "Laptop" as the EXACT SAME item type.
+- Treat "Mobile", "Phone", "Smartphone", and "iPhone/Samsung" (when context suggests phone) as the same category.
+- If a Serial Number matches exactly between two reports, score the match at 98-100% immediately.
+- If an Owner Name or ID Number matches exactly, score at 95-98%.
+
+STEP 2: COMPARE DIMENSIONS
+
+1. Title Similarity (0-100):
+   - Same item type mentioned: High score
+   - Brand matches: +15
+   - Color matches: +15
+   - Model/type matches: +20
+   - Different brand/type: Significantly lower score
+
+2. Description Similarity (0-100):
+   - All key identifiers match: 90-100
+   - Most identifiers match: 70-85
+   - Some identifiers match: 40-70
+   - Few identifiers match: <40
+   - IMPORTANT: If both mention specific details like "blue with sticker", "black with scratch" and they match exactly → 95+
+
+3. Category Match (0-100):
+   - Exact category match: 100
+   - Related categories: 60-80
+   - Different categories: 0-20
+
+4. Location Proximity (0-100):
+   - Exact same location: 100
+   - Same building/area: 85-95
+   - Nearby campus: 60-80
+   - Different campus areas: 30-50
+   - Off campus: 0-30
+
+5. Tag Overlap (0-100):
+   - All tags match: 100
+   - Most tags match: 70-90
+   - Some tags match: 40-70
+   - Few tags match: 0-40
+
+6. Time Proximity (0-100):
+   - Same day: 100
+   - 1 day apart: 90
+   - 2-3 days apart: 75-85
+   - Within 1 week: 60-75
+   - Within 2 weeks: 40-60
+   - More than 2 weeks: <40
+
+STEP 3: CALCULATE OVERALL SCORE
+
+For items that describe the SAME OBJECT:
+- Use weighted average of all dimension scores
+- Apply bonuses:
+  • All key identifiers match exactly: +10
+  • Distinctive features match (stickers, damage): +15
+  • Color match: +10
+  • Both within same location & close date: +15
+- Result: Usually 85-98 for same items
+
+STEP 4: OUTPUT THRESHOLD
+
+ONLY include matches with score >= 85
+- 85-89: Good match (probably same item)
+- 90-95: Very strong match (very likely same item)
+- 96-100: Excellent match (definitely same item)
+
+SCORING EXAMPLES:
+- Lost: "Blue iPhone 14 with crack on bottom" + Found: "Blue iPhone 14 Pro with bottom crack, library" (same day/next day) = 92-95
+- Lost: "Black AirPods Max" + Found: "Black Apple AirPods Max, found in cafe" (same week, same building) = 88-92
+- Lost: "Nike backpack red" + Found: "Red Nike bag" (different description but very similar) = 85-88
+- Lost: "Blue laptop" + Found: "Red laptop" (different color despite same type) = <85 (exclude)
 
 ${sourceLabel} Item:
-  Title: ${sourceItem.title}
+  Title: ${sourceItem.title || 'N/A'}
   Description: ${sourceItem.description || 'N/A'}
   Category: ${sourceItem.category || 'N/A'}
   Location: ${sourceItem.location || 'N/A'}
-  Tags: ${(sourceItem.tags || []).join(', ') || 'N/A'}
-  Date: ${sourceItem.dateOccurred ? new Date(sourceItem.dateOccurred).toISOString().split('T')[0] : 'N/A'}
-  Images: ${(sourceItem.images || []).length > 0 ? sourceItem.images.join(', ') : 'None'}
+  Tags: ${sourceTags}
+  Date: ${sourceDate}
+  Images: ${sourceImages}
 
 ${targetLabel} Items to compare:
 ${targetList}
 
-Return a JSON object with this exact schema:
+Analyze each comparison carefully. Return ONLY valid JSON:
 {
   "matches": [
     {
-      "itemIndex": <number>,
-      "score": <number 0-100>,
-      "explanation": "<detailed explanation of why this is a match>",
+      "itemIndex": <number starting from 0>,
+      "score": <85-100 for matches, exclude others>,
+      "explanation": "<specific explanation mentioning exact matching details like brand, color, distinctive features, and location/time alignment>",
       "details": {
-        "titleScore": <number 0-100>,
-        "descriptionScore": <number 0-100>,
-        "categoryScore": <number 0-100>,
-        "locationScore": <number 0-100>,
-        "tagScore": <number 0-100>,
-        "timeScore": <number 0-100>
+        "titleScore": <0-100>,
+        "descriptionScore": <0-100>,
+        "categoryScore": <0-100>,
+        "locationScore": <0-100>,
+        "tagScore": <0-100>,
+        "timeScore": <0-100>
       }
     }
   ]
 }
 
-If NO items match at >=85 confidence, return: {"matches": []}`;
-  }
-
-  async _callGemini(prompt) {
-    if (!this.genAI) return null;
-    try {
-      const model = this.genAI.getGenerativeModel({
-        model: this.modelName,
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: 'application/json',
-        },
-      });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      if (!text) return null;
-      const cleaned = text.replace(/```(?:json)?\s*/gi, '').trim();
-      return JSON.parse(cleaned);
-    } catch (error) {
-      console.error('[Gemini] Error:', error.message);
-      return null;
-    }
+CRITICAL RULES:
+- When items clearly describe the SAME object → Score 85+
+- Be generous with high-similarity matches
+- Be strict about fundamentally different items
+- Mention EXACT MATCHING DETAILS in explanation (e.g., "Both Apple iPhone 14 Pro Space Black with visible crack, Library West Wing, found within 24 hours")
+- If score < 85, exclude from results
+- If no matches qualify, return {"matches": []}`;
   }
 
   _parseResponse(parsed, targetItems) {
     if (!parsed || !Array.isArray(parsed.matches)) return null;
     return parsed.matches
-      .filter((m) => m.score >= 85)
-      .map((m) => ({
-        foundItemIndex: m.itemIndex,
-        foundItem: targetItems[m.itemIndex],
-        score: Math.round(m.score),
-        explanation: m.explanation || '',
-        details: m.details || {
-          titleScore: 0, descriptionScore: 0, categoryScore: 0,
-          locationScore: 0, tagScore: 0, timeScore: 0,
-        },
-      }));
+      .filter((m) => m.score >= 85 && m.itemIndex !== undefined && targetItems[m.itemIndex])
+      .map((m) => {
+        const targetItem = targetItems[m.itemIndex];
+        return {
+          foundItemIndex: m.itemIndex,
+          lostItem: targetItem,
+          foundItem: targetItem,
+          score: Math.round(Math.min(Math.max(m.score, 0), 100)),
+          explanation: m.explanation && m.explanation.trim() ? m.explanation : '',
+          details: m.details && typeof m.details === 'object' ? {
+            titleScore: Math.round(m.details.titleScore || 0),
+            descriptionScore: Math.round(m.details.descriptionScore || 0),
+            categoryScore: Math.round(m.details.categoryScore || 0),
+            locationScore: Math.round(m.details.locationScore || 0),
+            tagScore: Math.round(m.details.tagScore || 0),
+            timeScore: Math.round(m.details.timeScore || 0),
+          } : {
+            titleScore: 0, descriptionScore: 0, categoryScore: 0,
+            locationScore: 0, tagScore: 0, timeScore: 0,
+          },
+        };
+      });
   }
 
   async analyze(sourceItem, targetItems, direction = 'lost-to-found') {
-    if (!this.genAI) return null;
+    if (!this.enabled) return null;
     const prompt = this._buildPrompt(sourceItem, targetItems, direction);
-    const response = await this._callGemini(prompt);
+    const response = await this._callMatcher(prompt);
     return this._parseResponse(response, targetItems);
   }
 
@@ -131,13 +283,8 @@ If NO items match at >=85 confidence, return: {"matches": []}`;
   }
 
   async generateNoMatchExplanation(item, language = 'en') {
-    if (!this.genAI) return null;
+    if (!this.enabled) return null;
     try {
-      const model = this.genAI.getGenerativeModel({
-        model: this.modelName,
-        generationConfig: { temperature: 0.4 },
-      });
-
       const langInstruction = language === 'am'
         ? 'Respond entirely in Amharic (አማርኛ).'
         : 'Respond in English.';
@@ -165,22 +312,18 @@ Generate a friendly, human-like message (2-3 short paragraphs) that:
 
 Keep the tone conversational and encouraging. Do NOT use markdown, bullet points, or asterisks. Write in plain paragraphs. Do not mention the 85% threshold explicitly to the user.`;
 
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const result = await this._callGroq(prompt, { temperature: 0.4, maxOutputTokens: 300, topP: 0.9 });
+      const text = this._extractTextFromResponse(result);
       return { explanation: text || generateLocalNoMatchExplanation(item, language) };
     } catch (error) {
-      console.error('[Gemini] No-match explanation error:', error.message);
+      console.error('[Groq] No-match explanation error:', error.message);
       return null;
     }
   }
 
   async askAssistant(data) {
-    if (!this.genAI) return null;
+    if (!this.enabled) return null;
     try {
-      const model = this.genAI.getGenerativeModel({
-        model: this.modelName,
-        generationConfig: { temperature: 0.3 },
-      });
       const context = typeof data.context === 'string' ? JSON.parse(data.context) : data.context;
       const prompt = `You are a helpful AI assistant for a lost and found item matching system.
 
@@ -196,11 +339,11 @@ Context about the matched items:
 The user asks: "${data.question}"
 
 Provide a helpful, friendly, and concise response. If they ask about the match score, explain what makes it a good or bad match. If they ask about next steps, suggest coordinating with the other party. Be conversational and practical.`;
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      return { answer: text || 'I am not sure how to answer that.' };
+      const result = await this._callGroq(prompt, { temperature: 0.3, maxOutputTokens: 300, topP: 0.9 });
+      const text = this._extractTextFromResponse(result);
+      return { answer: text || "hey i'm lost link system developed by DBE cs student. Ask me about match results, next steps, or item details." };
     } catch (error) {
-      console.error('[Gemini] Assistant error:', error.message);
+      console.error('[Groq] Assistant error:', error.message);
       return null;
     }
   }

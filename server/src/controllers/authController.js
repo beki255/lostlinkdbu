@@ -92,9 +92,21 @@ exports.verifyEmail = async (req, res, next) => {
     otpRecord.isUsed = true;
     await otpRecord.save();
 
-    await User.findOneAndUpdate({ email }, { isVerified: true });
+    const user = await User.findOneAndUpdate({ email }, { isVerified: true }, { new: true });
 
-    sendSuccess(res, null, 'Email verified successfully.');
+    const token = generateToken(user._id, user.role);
+
+    await AuditLog.create({
+      action: 'EMAIL_VERIFIED',
+      resource: 'User',
+      resourceId: user._id,
+      performedBy: user._id,
+      performedByRole: user.role,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    sendSuccess(res, { token, user: user.toPublicJSON() }, 'Email verified successfully and logged in.');
   } catch (error) {
     next(error);
   }
@@ -115,8 +127,33 @@ exports.login = async (req, res, next) => {
       throw new AppError('Invalid email or password.', 401);
     }
 
+    if (user.status === 'banned') {
+      throw new AppError('Your account has been banned. Please contact support.', 403);
+    }
+
     if (!user.isVerified) {
-      throw new AppError('Please verify your email before logging in. Check your inbox for the verification code.', 403);
+      const otp = generateOTP();
+      await OTP.deleteMany({ email, type: 'email_verification', isUsed: false });
+      await OTP.create({
+        email,
+        otp,
+        type: 'email_verification',
+        expiresAt: new Date(Date.now() + config.otp.expiresIn),
+      });
+
+      await sendEmail({
+        to: email,
+        subject: 'Verify Your LostLink Account',
+        otp,
+        type: 'email_verification',
+      });
+
+      return res.status(403).json({
+        success: false,
+        message: 'Email not verified. A new verification code has been sent to your inbox.',
+        code: 'EMAIL_NOT_VERIFIED',
+        email
+      });
     }
 
     const token = generateToken(user._id, user.role);
@@ -153,7 +190,7 @@ exports.forgotPassword = async (req, res, next) => {
     await OTP.create({
       email,
       otp,
-      type: 'email_verification',
+      type: 'password_reset',
       expiresAt: new Date(Date.now() + config.otp.expiresIn),
     });
 
@@ -218,7 +255,9 @@ exports.resetPassword = async (req, res, next) => {
       userAgent: req.get('user-agent'),
     });
 
-    sendSuccess(res, null, 'Password reset successful.');
+    const token = generateToken(user._id, user.role);
+
+    sendSuccess(res, { token, user: user.toPublicJSON() }, 'Password reset successful and logged in.');
   } catch (error) {
     next(error);
   }
@@ -239,25 +278,34 @@ exports.resendOtp = async (req, res, next) => {
     const user = await User.findOne({ email, isDeleted: false });
     if (!user) throw new NotFoundError('User');
 
-    if (user.isVerified) {
+    const type = req.body.type || 'email_verification';
+    if (!['email_verification', 'password_reset'].includes(type)) {
+      throw new AppError('Invalid OTP type.', 400);
+    }
+
+    if (type === 'email_verification' && user.isVerified) {
       return sendSuccess(res, null, 'Email is already verified.');
     }
 
-    await OTP.deleteMany({ email, type: 'email_verification', isUsed: false });
+    await OTP.deleteMany({ email, type, isUsed: false });
 
     const otp = generateOTP();
     await OTP.create({
       email,
       otp,
-      type: 'email_verification',
+      type,
       expiresAt: new Date(Date.now() + config.otp.expiresIn),
     });
 
+    const subject = type === 'email_verification' 
+      ? 'Verify Your LostLink Account' 
+      : 'Reset Your LostLink Password';
+
     const emailSent = await sendEmail({
       to: email,
-      subject: 'Verify Your LostLink Account',
+      subject,
       otp,
-      type: 'email_verification',
+      type,
     });
 
     if (!emailSent) {
@@ -355,11 +403,59 @@ exports.googleAuth = async (req, res, next) => {
 
 exports.updateProfile = async (req, res, next) => {
   try {
-    const allowedFields = ['name', 'phone', 'department', 'studentId'];
+    const allowedFields = ['name', 'phone', 'department', 'studentId', 'avatar'];
     const updates = {};
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
         updates[field] = req.body[field];
+      }
+    }
+
+    // Handle avatar upload from file
+    if (req.file) {
+      updates.avatar = req.file.path;
+    }
+
+    // Mandatory fields check for regular users
+    if (req.user.role === 'user') {
+      const studentId = req.body.studentId || req.user.studentId;
+      const department = req.body.department || req.user.department;
+
+      if (!studentId) throw new AppError('Student ID is mandatory for lost and found users.', 400);
+      if (!department) throw new AppError('Department is mandatory for lost and found users.', 400);
+
+      // Student ID format validation
+      // Format: dbu + YY (Ethiopian Year) + XXXX (4-digit number)
+      // YY must be <= current Ethiopian year (last 2 digits)
+      
+      const idRegex = /^dbu(\d{2})(\d{4})$/i;
+      const match = String(studentId).match(idRegex);
+      
+      if (!match) {
+        throw new AppError('Invalid Student ID format. Expected format: dbuYYXXXX (e.g., dbu180001)', 400);
+      }
+
+      const idYear = parseInt(match[1]);
+      
+      // Calculate current Ethiopian year (roughly Gregorian - 8)
+      // For May 2026, it's 2018 EC.
+      const currentGregorianYear = new Date().getFullYear();
+      const currentGregorianMonth = new Date().getMonth(); // 0-indexed
+      
+      // Ethiopian New Year is around Sept 11/12 (Month 8 in JS)
+      let currentEthiopianYear = currentGregorianYear - 8;
+      if (currentGregorianMonth > 8 || (currentGregorianMonth === 8 && new Date().getDate() >= 11)) {
+        // We are past Sept 11, so it's a new Ethiopian year (actually Gregorian - 7)
+        // Wait, Jan 2026 is 2018 EC. Sept 2026 starts 2019 EC.
+        // So from Jan to Sept, it's Gregorian - 8.
+        // From Sept to Dec, it's Gregorian - 7.
+        currentEthiopianYear = currentGregorianYear - 7;
+      }
+      
+      const currentEthYear2Digits = currentEthiopianYear % 100;
+
+      if (idYear > currentEthYear2Digits) {
+        throw new AppError(`Student ID year (${idYear}) cannot be in the future. Current Ethiopian year last two digits: ${currentEthYear2Digits}`, 400);
       }
     }
 
@@ -379,6 +475,47 @@ exports.updateProfile = async (req, res, next) => {
     });
 
     sendSuccess(res, { user: user.toPublicJSON() }, 'Profile updated.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      throw new AppError('Current password and new password are required.', 400);
+    }
+
+    if (newPassword.length < 6) {
+      throw new AppError('New password must be at least 6 characters long.', 400);
+    }
+
+    // Get user with password hash
+    const user = await User.findById(req.user._id).select('+passwordHash');
+    if (!user) throw new NotFoundError('User');
+
+    // Verify current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      throw new AppError('Current password is incorrect.', 401);
+    }
+
+    // Update password
+    user.passwordHash = newPassword;
+    await user.save();
+
+    await AuditLog.create({
+      action: 'PASSWORD_CHANGED',
+      resource: 'User',
+      resourceId: user._id,
+      performedBy: user._id,
+      performedByRole: user.role,
+      ipAddress: req.ip,
+    });
+
+    sendSuccess(res, null, 'Password changed successfully.');
   } catch (error) {
     next(error);
   }

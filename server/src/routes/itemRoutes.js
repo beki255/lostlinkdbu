@@ -7,7 +7,8 @@ const upload = require('../middleware/upload');
 const { createItemSchema, updateItemSchema } = require('../validators/itemValidator');
 
 router.get('/', authenticate, itemController.getItems);
-router.get('/search', optionalAuth, itemController.searchItems);
+// Search is now restricted to authenticated users only
+router.get('/search', authenticate, itemController.searchItems);
 router.get('/:id', authenticate, itemController.getItem);
 
 router.post('/',

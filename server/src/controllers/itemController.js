@@ -1,5 +1,6 @@
 const Item = require('../models/Item');
 const Match = require('../models/Match');
+const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const matchingService = require('../services/matchingService');
 const aiService = require('../services/aiService');
@@ -23,6 +24,15 @@ const sanitizeFields = (obj) => {
 
 exports.createItem = async (req, res, next) => {
   try {
+    // Require completed profile for regular users before reporting items
+    if (req.user && req.user.role === 'user') {
+      const requiredFields = ['name', 'phone', 'department', 'studentId'];
+      const missing = requiredFields.filter((f) => !req.user[f]);
+      if (missing.length > 0) {
+        return next(new ForbiddenError(`Please complete your profile before reporting items. Missing: ${missing.join(', ')}`));
+      }
+    }
+
     const itemData = { ...req.body, reportedBy: req.user._id };
 
     if (typeof itemData.tags === 'string') {
@@ -52,11 +62,9 @@ exports.createItem = async (req, res, next) => {
       matches = result.matches;
       matchMethod = result.method;
     } else if (item.type === 'found') {
-      setImmediate(() => {
-        matchingService.runMatching(item._id).catch((err) => {
-          console.error('[Matching] Background match failed:', err.message);
-        });
-      });
+      const result = await matchingService.runMatching(item._id);
+      matches = result.matches;
+      matchMethod = result.method;
     }
 
     await AuditLog.create({
@@ -80,18 +88,29 @@ exports.getItems = async (req, res, next) => {
     const { page, limit, skip } = paginate(req.query.page, req.query.limit);
     const filter = { isDeleted: false };
 
-    // Privacy: users can only see their own reported items
-    if (req.user) {
-      filter.reportedBy = req.user._id;
-    } else {
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'security');
+
+    if (!req.user) {
       return sendPaginated(res, { items: [] }, buildPaginationResponse(0, page, limit));
     }
 
+    // Non-admin users can NEVER see resolved items (hidden after recovery)
+    if (!isAdmin) {
+      filter.status = { $ne: 'resolved' };
+      // Non-admin users only see their own items always
+      filter.reportedBy = req.user._id;
+    }
+
+    // Allow admins to filter by status
+    if (isAdmin && req.query.status) filter.status = req.query.status;
     if (req.query.type) filter.type = req.query.type;
-    if (req.query.status) filter.status = req.query.status;
     if (req.query.category) filter.category = req.query.category;
-    if (req.query.q) {
-      filter.$text = { $search: req.query.q };
+    if (req.query.location) filter.$or = [
+      { location: { $regex: req.query.location, $options: 'i' } }
+    ];
+    if (req.query.search || req.query.q) {
+      const searchTerm = req.query.search || req.query.q;
+      filter.$text = { $search: searchTerm };
     }
 
     const [items, total] = await Promise.all([
@@ -105,19 +124,50 @@ exports.getItems = async (req, res, next) => {
 
     // Include AI matches for each lost item
     const itemsWithMatches = await Promise.all(items.map(async (item) => {
-      if (item.type === 'lost') {
+      const itemObj = item.toObject();
+      
+      // Censor found items for regular users
+      // REMOVED as per user request to use 70% and remove restrictions
+      /*
+      const isAuthorized = req.user && (req.user.role === 'admin' || req.user.role === 'security' || item.reportedBy._id.equals(req.user._id));
+      
+      if (itemObj.type === 'found' && !isAuthorized) {
+        itemObj.images = []; // Hide images
+        itemObj.description = 'Description hidden for privacy. Match with a lost report to reveal.';
+        itemObj.location = 'Controlled Access';
+        itemObj.building = 'Censored';
+      }
+      */
+
+      if (item.type === 'lost' && item.reportedBy._id.equals(req.user._id)) {
         const matches = await Match.find({
           lostItem: item._id,
           score: { $gte: 70 },
         })
-          .populate('foundItem', 'title description category location images dateOccurred')
+          .populate('foundItem', 'title description category location images dateOccurred visibility')
           .select('score details aiExplanation foundItem')
           .sort({ score: -1 })
           .limit(5)
           .lean();
-        return { ...item.toObject(), matches };
+
+        // Reveal details and contact info for matches >= 65%
+        const matchesWithDetails = await Promise.all(matches.map(async (m) => {
+          const mObj = { ...m };
+          if (mObj.foundItem) {
+            // Enforce 65% threshold for images as requested
+            if (mObj.score < 65) {
+              mObj.foundItem.images = [];
+              mObj.foundItem.description = 'Image and detailed description hidden until match confidence exceeds 65%.';
+            }
+            const finder = await User.findById(mObj.foundItem.reportedBy).select('name email phone department');
+            mObj.foundItem.reportedBy = finder;
+          }
+          return mObj;
+        }));
+
+        return { ...itemObj, matches: matchesWithDetails };
       }
-      return item.toObject();
+      return itemObj;
     }));
 
     sendPaginated(res, { items: itemsWithMatches }, buildPaginationResponse(total, page, limit));
@@ -131,12 +181,20 @@ exports.getItem = async (req, res, next) => {
     const item = await Item.findOne({
       _id: req.params.id,
       isDeleted: false,
-    }).populate('reportedBy', 'name email department');
+    }).populate('reportedBy', 'name email department phone');
 
     if (!item) throw new NotFoundError('Item');
 
-    // Public lost items are visible to all users; private found items are restricted
-    if (req.user && req.user.role === 'user' && item.visibility === 'private' && !item.reportedBy._id.equals(req.user._id)) {
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'security');
+
+    // Non-admin users cannot see resolved items at all — they are hidden
+    if (!isAdmin && item.status === 'resolved') {
+      throw new NotFoundError('Item');
+    }
+
+    // Regular users can only view their own items
+    const isOwner = req.user && item.reportedBy._id.equals(req.user._id);
+    if (!isAdmin && !isOwner) {
       throw new ForbiddenError('You do not have access to this item.');
     }
 
@@ -149,12 +207,8 @@ exports.getItem = async (req, res, next) => {
 exports.searchItems = async (req, res, next) => {
   try {
     const { page, limit, skip } = paginate(req.query.page, req.query.limit);
-    const filter = { isDeleted: false, type: 'lost' };
-
-    // Exclude the current user's own items from search results
-    if (req.user) {
-      filter.reportedBy = { $ne: req.user._id };
-    }
+    // Search limited to the requesting user's own lost items only
+    const filter = { isDeleted: false, type: 'lost', reportedBy: req.user ? req.user._id : null };
 
     if (req.query.q) {
       filter.$text = { $search: req.query.q };
@@ -186,6 +240,10 @@ exports.updateItem = async (req, res, next) => {
 
     if (req.user.role === 'user' && !item.reportedBy.equals(req.user._id)) {
       throw new ForbiddenError('You can only edit your own items.');
+    }
+
+    if (item.status === 'resolved' && req.user.role !== 'admin') {
+      throw new ForbiddenError('This item is resolved and cannot be edited.');
     }
 
     const oldData = item.toObject();
@@ -230,6 +288,10 @@ exports.deleteItem = async (req, res, next) => {
 
     if (req.user.role === 'user' && !item.reportedBy.equals(req.user._id)) {
       throw new ForbiddenError('You can only delete your own items.');
+    }
+
+    if (item.status === 'resolved' && req.user.role !== 'admin') {
+      throw new ForbiddenError('This item is resolved and cannot be deleted.');
     }
 
     item.isDeleted = true;

@@ -4,6 +4,10 @@ import Layout from './components/layout/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import VerifyOtp from './pages/auth/VerifyOtp';
+import ResetPassword from './pages/auth/ResetPassword';
+import VerifyEmail from './pages/auth/VerifyEmail';
 import UserDashboard from './pages/dashboard/UserDashboard';
 import SecurityDashboard from './pages/dashboard/SecurityDashboard';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
@@ -15,6 +19,12 @@ import MatchDetail from './pages/items/MatchDetail';
 import ReportResult from './pages/items/ReportResult';
 import ChatView from './pages/dashboard/ChatView';
 import Profile from './pages/dashboard/Profile';
+import Settings from './pages/dashboard/Settings';
+import UserManagement from './pages/admin/UserManagement';
+import CMS from './pages/admin/CMS';
+import Reports from './pages/admin/Reports';
+import LostFoundUsers from './pages/admin/LostFoundUsers';
+import ReceivedItems from './pages/admin/ReceivedItems';
 
 function ProtectedRoute({ children, roles }) {
   const { isAuthenticated: auth, user, loading } = useAuth();
@@ -31,10 +41,22 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
       <Route element={<Layout />}>
-        <Route path="/items" element={<ItemList />} />
-        <Route path="/items/:id" element={<ItemDetail />} />
+        <Route path="/items" element={
+          <ProtectedRoute>
+            <ItemList />
+          </ProtectedRoute>
+        } />
+        <Route path="/items/:id" element={
+          <ProtectedRoute>
+            <ItemDetail />
+          </ProtectedRoute>
+        } />
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <RoleDashboard />
@@ -67,7 +89,42 @@ export default function App() {
         } />
         <Route path="/profile" element={
           <ProtectedRoute>
-            <Profile />
+            <Settings />
+          </ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin" element={
+          <ProtectedRoute roles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/users" element={
+          <ProtectedRoute roles={['admin']}>
+            <UserManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/cms" element={
+          <ProtectedRoute roles={['admin']}>
+            <CMS />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/reports" element={
+          <ProtectedRoute roles={['admin']}>
+            <Reports />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/received" element={
+          <ProtectedRoute roles={['admin']}>
+            <ReceivedItems />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/lost-found" element={
+          <ProtectedRoute roles={['admin']}>
+            <LostFoundUsers />
           </ProtectedRoute>
         } />
       </Route>

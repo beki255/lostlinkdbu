@@ -10,7 +10,6 @@ const path = require('path');
 const config = require('./config');
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
-const { globalLimiter } = require('./middleware/rateLimiter');
 const { setupChatSocket } = require('./sockets/chatHandler');
 const { getTransporter } = require('./services/emailService');
 
@@ -19,6 +18,10 @@ const itemRoutes = require('./routes/itemRoutes');
 const claimRoutes = require('./routes/claimRoutes');
 const matchRoutes = require('./routes/matchRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const securityRoutes = require('./routes/securityRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -40,8 +43,6 @@ app.use(cors({
   credentials: true,
 }));
 
-// Rate limiting
-app.use('/api/', globalLimiter);
 
 // Logging
 if (config.env !== 'test') {
@@ -71,6 +72,10 @@ app.use('/api/items', itemRoutes);
 app.use('/api/claims', claimRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/security', securityRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/public', publicRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth');
 router.use(authenticate);
 
 router.get('/', matchController.getMyMatches);
+router.post('/', matchController.createMatch);
 router.get('/:id', matchController.getMatch);
 router.patch('/:id/status', matchController.updateMatchStatus);
 router.get('/:id/chat', matchController.getMatchChat);

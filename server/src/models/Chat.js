@@ -50,6 +50,7 @@ const chatSchema = new mongoose.Schema({
   },
   expiresAt: {
     type: Date,
+    default: () => new Date(+new Date() + 72 * 60 * 60 * 1000), // 72 hours from now
   },
   lastActivity: {
     type: Date,

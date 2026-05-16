@@ -1,5 +1,4 @@
 const rateLimit = require('express-rate-limit');
-const config = require('../config');
 
 const createRateLimiter = (windowMs, max, message) => {
   return rateLimit({
@@ -14,22 +13,11 @@ const createRateLimiter = (windowMs, max, message) => {
   });
 };
 
-const globalLimiter = createRateLimiter(
-  config.rateLimit.windowMs,
-  config.rateLimit.max,
-  'Too many requests. Please try again later.'
-);
-
-const authLimiter = createRateLimiter(
-  1500 * 60 * 1000,
-  5,
-  'Too many authentication attempts. Please try again after 15 minutes.'
-);
-
+// OTP rate limiter - allows 3 attempts per 5 minutes
 const otpLimiter = createRateLimiter(
   5 * 60 * 1000,
   3,
   'Too many OTP attempts. Please try again after 5 minutes.'
 );
 
-module.exports = { globalLimiter, authLimiter, otpLimiter };
+module.exports = { otpLimiter };

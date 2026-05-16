@@ -37,7 +37,14 @@ exports.getMyMatches = async (req, res, next) => {
 
 exports.getMatch = async (req, res, next) => {
   try {
-    const { match } = await checkMatchAccess(req.params.id, req.user._id);
+    const { match, lostItem, foundItem, isLostOwner, isFoundOwner } = await checkMatchAccess(req.params.id, req.user._id);
+    
+    // Reveal contact info for ALL matches as requested
+    await match.populate([
+      { path: 'lostItem', populate: { path: 'reportedBy', select: 'name email phone department' } },
+      { path: 'foundItem', populate: { path: 'reportedBy', select: 'name email phone department' } }
+    ]);
+
     sendSuccess(res, { match });
   } catch (error) {
     next(error);
@@ -56,6 +63,11 @@ exports.updateMatchStatus = async (req, res, next) => {
     match.status = status;
     if (status === 'resolved') {
       match.resolvedAt = new Date();
+      // Update both items to resolved status as well
+      await Item.updateMany(
+        { _id: { $in: [match.lostItem, match.foundItem] } },
+        { status: 'resolved' }
+      );
     }
     await match.save();
 
@@ -165,6 +177,48 @@ exports.askAI = async (req, res, next) => {
   }
 };
 
+exports.createMatch = async (req, res, next) => {
+  try {
+    const { lostItemId, foundItemId, score, details, explanation } = req.body;
+
+    const lostItem = await Item.findById(lostItemId);
+    const foundItem = await Item.findById(foundItemId);
+
+    if (!lostItem || !foundItem) throw new NotFoundError('Items not found');
+
+    // If regular user, they can only create a match for their OWN lost item
+    if (req.user.role === 'user' && lostItem.reportedBy.toString() !== req.user._id.toString()) {
+      throw new ForbiddenError('You can only create matches for your own lost items.');
+    }
+
+    // Check if match already exists
+    let match = await Match.findOne({ lostItem: lostItemId, foundItem: foundItemId });
+    
+    if (match) {
+      match.score = score || 100;
+      match.method = 'manual';
+      match.aiExplanation = explanation || 'Manually matched by user/staff.';
+      await match.save();
+    } else {
+      match = await Match.create({
+        lostItem: lostItemId,
+        foundItem: foundItemId,
+        score: score || 100,
+        details: details || { titleScore: 100, descriptionScore: 100, categoryScore: 100, locationScore: 100, tagScore: 100, timeScore: 100 },
+        method: 'manual',
+        aiExplanation: explanation || 'Manually matched by user/staff.',
+      });
+    }
+
+    // Trigger chat creation if needed
+    await matchingService.createMatchChat(match);
+
+    sendSuccess(res, { match }, 'Manual match created successfully.');
+  } catch (error) {
+    next(error);
+  }
+};
+
 function generateLocalAnswer(context, question) {
   const q = question.toLowerCase();
   const lost = context.lostItem;
@@ -174,7 +228,7 @@ function generateLocalAnswer(context, question) {
 
   if (q.includes('match') || q.includes('score') || q.includes('similar')) {
     parts.push(`The match score between ${isLostOwner ? 'your' : 'the'} "${lost.title}" and ${isLostOwner ? 'the found' : 'the lost'} "${found?.title || 'item'}" is ${context.matchScore}%.`);
-    if (context.matchScore >= 85) {
+    if (context.matchScore >= 70) {
       parts.push('This is a strong match! We recommend contacting the other party.');
     } else if (context.matchScore >= 50) {
       parts.push('This is a moderate match. Review the details carefully.');
@@ -217,7 +271,7 @@ function generateLocalAnswer(context, question) {
   }
 
   if (q.includes('next') || q.includes('step') || q.includes('what') || q.includes('help') || q.includes('suggest')) {
-    if (context.matchScore >= 85) {
+    if (context.matchScore >= 70) {
       parts.push('Next steps: 1) Review the match details below. 2) Click "Chat" to discuss returning the item. 3) Coordinate pickup. 4) Mark as resolved once complete.');
     } else if (context.matchScore >= 50) {
       parts.push('The match is moderate. You can: 1) Review the item details. 2) Chat with the other party to ask more questions. 3) If it matches, arrange pickup.');
@@ -226,8 +280,12 @@ function generateLocalAnswer(context, question) {
     }
   }
 
+  if (q === 'hi' || q === 'hello' || q === 'hey') {
+    return "hey i'm lost link system developed by DBE cs student";
+  }
+
   if (parts.length === 0) {
-    parts.push(`I'm your AI assistant for this match (${context.matchScore}%). You can ask me about the match score, item details, how to chat, or what to do next.`);
+    parts.push("hey i'm lost link system developed by DBE cs student. You can ask me about the match score, item details, how to chat, or what to do next.");
   }
 
   return parts.join('\n\n');

@@ -59,6 +59,14 @@ const itemSchema = new mongoose.Schema({
       lng: Number,
     },
   },
+  serialNumber: {
+    type: String,
+    trim: true,
+  },
+  ownerName: {
+    type: String,
+    trim: true,
+  },
   images: [{
     url: {
       type: String,

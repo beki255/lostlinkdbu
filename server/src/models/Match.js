@@ -44,6 +44,11 @@ const matchSchema = new mongoose.Schema({
     enum: ['pending', 'contacted', 'resolved', 'dismissed'],
     default: 'pending',
   },
+  method: {
+    type: String,
+    enum: ['ai', 'manual'],
+    default: 'ai',
+  },
   notifiedAt: Date,
   resolvedAt: Date,
 }, {
