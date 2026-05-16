@@ -1,0 +1,9 @@
+process.env.NODE_ENV = 'test';
+process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/lostlink_test';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
+process.env.CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'test';
+process.env.CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || 'test';
+process.env.CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || 'test';
+process.env.AI_MODEL = process.env.AI_MODEL || 'gpt-4';
+process.env.AI_TEMPERATURE = process.env.AI_TEMPERATURE || '0.2';
+process.env.AI_MAX_TOKENS = process.env.AI_MAX_TOKENS || '2000';

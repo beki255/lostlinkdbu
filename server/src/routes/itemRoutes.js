@@ -21,6 +21,7 @@ router.post('/',
 
 router.patch('/:id',
   authenticate,
+  upload.array('images', 5),
   validate(updateItemSchema),
   itemController.updateItem
 );

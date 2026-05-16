@@ -5,7 +5,7 @@ const validate = (schema) => {
     const errors = [];
 
     if (schema.body) {
-      const { error } = schema.body.validate(req.body, { abortEarly: false });
+      const { error } = schema.body.validate(req.body, { abortEarly: false, allowUnknown: true });
       if (error) {
         error.details.forEach((detail) => {
           errors.push({

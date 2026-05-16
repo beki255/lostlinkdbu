@@ -19,7 +19,7 @@ const config = {
     port: parseInt(process.env.SMTP_PORT, 10) || 587,
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s+/g, '') : undefined,
-    from: process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@lostlink.edu',
+    from: process.env.SMTP_FROM || process.env.SMTP_USER || 'lostlinkdbu@gmail.com',
   },
 
   google: {
@@ -30,6 +30,9 @@ const config = {
   ai: {
     serviceUrl: process.env.AI_SERVICE_URL || 'http://localhost:5001',
     apiKey: process.env.AI_API_KEY,
+    model: process.env.AI_MODEL || 'gpt-4',
+    temperature: parseFloat(process.env.AI_TEMPERATURE) || 0.2,
+    maxTokens: parseInt(process.env.AI_MAX_TOKENS, 10) || 2000,
   },
 
   upload: {
@@ -40,6 +43,12 @@ const config = {
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000,
     max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+  },
+
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
 
   otp: {

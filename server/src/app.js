@@ -17,6 +17,7 @@ const { getTransporter } = require('./services/emailService');
 const authRoutes = require('./routes/authRoutes');
 const itemRoutes = require('./routes/itemRoutes');
 const claimRoutes = require('./routes/claimRoutes');
+const matchRoutes = require('./routes/matchRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
@@ -68,6 +69,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/claims', claimRoutes);
+app.use('/api/matches', matchRoutes);
 app.use('/api/admin', adminRoutes);
 
 // 404 handler
@@ -101,7 +103,9 @@ const startServer = async () => {
   });
 };
 
-startServer();
+if (config.env !== 'test') {
+  startServer();
+}
 
 // Export for testing
 module.exports = { app, server, io };

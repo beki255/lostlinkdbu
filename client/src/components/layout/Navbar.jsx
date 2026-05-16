@@ -21,6 +21,7 @@ export default function Navbar() {
   if (isAuthenticated) {
     navLinks.push({ to: '/dashboard', label: t('nav.dashboard') });
     navLinks.push({ to: '/report', label: t('nav.report') });
+    navLinks.push({ to: '/matches', label: 'AI Matches' });
     navLinks.push({ to: '/items', label: t('nav.search') });
     if (hasRole('admin')) navLinks.push({ to: '/admin', label: t('nav.admin') });
   }

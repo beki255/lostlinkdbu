@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { items as itemsApi, claims as claimsApi } from '../../services/api';
-import { FiPlus, FiSearch, FiClock, FiCheckCircle } from 'react-icons/fi';
+import { items as itemsApi, claims as claimsApi, matches as matchesApi } from '../../services/api';
+import { FiPlus, FiSearch, FiClock, FiCheckCircle, FiPercent, FiMessageCircle } from 'react-icons/fi';
 
 export default function UserDashboard() {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ myItems: 0, myClaims: 0, resolved: 0 });
+  const [stats, setStats] = useState({ myItems: 0, myClaims: 0, resolved: 0, matches: 0, strongMatches: 0 });
   const [recentItems, setRecentItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -14,12 +14,16 @@ export default function UserDashboard() {
     Promise.all([
       itemsApi.getAll({ limit: 5, type: 'lost' }),
       claimsApi.getAll({ limit: 5 }),
-    ]).then(([itemsRes, claimsRes]) => {
+      matchesApi.getAll(),
+    ]).then(([itemsRes, claimsRes, matchRes]) => {
       setRecentItems(itemsRes.data?.items || []);
+      const matches = matchRes.data?.matches || [];
       setStats({
         myItems: itemsRes.data?.items?.length || 0,
         myClaims: claimsRes.data?.claims?.length || 0,
         resolved: claimsRes.data?.claims?.filter(c => c.status === 'completed' || c.status === 'approved').length || 0,
+        matches: matches.length,
+        strongMatches: matches.filter(m => m.isStrongMatch).length,
       });
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -41,13 +45,15 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
         {[
-          { label: 'My Reports', value: stats.myItems, icon: FiPlus, color: 'text-blue-600 bg-blue-100' },
-          { label: 'Active Claims', value: stats.myClaims, icon: FiClock, color: 'text-yellow-600 bg-yellow-100' },
-          { label: 'Resolved', value: stats.resolved, icon: FiCheckCircle, color: 'text-green-600 bg-green-100' },
+          { label: 'My Reports', value: stats.myItems, icon: FiPlus, color: 'text-blue-600 bg-blue-100', link: '/items' },
+          { label: 'Active Claims', value: stats.myClaims, icon: FiClock, color: 'text-yellow-600 bg-yellow-100', link: '#' },
+          { label: 'Resolved', value: stats.resolved, icon: FiCheckCircle, color: 'text-green-600 bg-green-100', link: '#' },
+          { label: 'AI Matches', value: stats.matches, icon: FiPercent, color: 'text-purple-600 bg-purple-100', link: '/matches' },
+          { label: 'Strong Matches', value: stats.strongMatches, icon: FiMessageCircle, color: 'text-red-600 bg-red-100', link: '/matches' },
         ].map((s) => (
-          <div key={s.label} className="card">
+          <Link key={s.label} to={s.link} className="card hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">{s.label}</p>
@@ -57,7 +63,7 @@ export default function UserDashboard() {
                 <s.icon className="w-6 h-6" />
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 

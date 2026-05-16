@@ -10,6 +10,9 @@ import AdminDashboard from './pages/dashboard/AdminDashboard';
 import ReportItem from './pages/items/ReportItem';
 import ItemDetail from './pages/items/ItemDetail';
 import ItemList from './pages/items/ItemList';
+import Matches from './pages/items/Matches';
+import MatchDetail from './pages/items/MatchDetail';
+import ReportResult from './pages/items/ReportResult';
 import ChatView from './pages/dashboard/ChatView';
 import Profile from './pages/dashboard/Profile';
 
@@ -28,10 +31,10 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/items" element={<ItemList />} />
-      <Route path="/items/:id" element={<ItemDetail />} />
 
       <Route element={<Layout />}>
+        <Route path="/items" element={<ItemList />} />
+        <Route path="/items/:id" element={<ItemDetail />} />
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <RoleDashboard />
@@ -40,6 +43,21 @@ export default function App() {
         <Route path="/report" element={
           <ProtectedRoute>
             <ReportItem />
+          </ProtectedRoute>
+        } />
+        <Route path="/matches" element={
+          <ProtectedRoute>
+            <Matches />
+          </ProtectedRoute>
+        } />
+        <Route path="/matches/:id" element={
+          <ProtectedRoute>
+            <MatchDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/report/:itemId/result" element={
+          <ProtectedRoute>
+            <ReportResult />
           </ProtectedRoute>
         } />
         <Route path="/chat/:chatId" element={

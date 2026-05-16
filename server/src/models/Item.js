@@ -60,7 +60,16 @@ const itemSchema = new mongoose.Schema({
     },
   },
   images: [{
-    url: { type: String, required: true },
+    url: {
+      type: String,
+      required: true,
+      validate: {
+        validator: function (v) {
+          return /^https?:\/\/res\.cloudinary\.com\/.+/.test(v);
+        },
+        message: 'Image URL must be a valid Cloudinary URL.',
+      },
+    },
     thumbnail: String,
     isPrimary: { type: Boolean, default: false },
   }],

@@ -3,7 +3,6 @@ import { getToken, clearAuth } from '../utils/auth';
 
 const api = axios.create({
   baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
 });
 
@@ -12,8 +11,17 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const lang = localStorage.getItem('language') || 'en';
+  config.headers['Accept-Language'] = lang;
   return config;
 });
+
+class ApiError extends Error {
+  constructor(message, serverErrors) {
+    super(message);
+    this.serverErrors = serverErrors || [];
+  }
+}
 
 api.interceptors.response.use(
   (response) => response.data,
@@ -22,8 +30,9 @@ api.interceptors.response.use(
       clearAuth();
       window.location.href = '/login';
     }
-    const message = error.response?.data?.message || error.message || 'Something went wrong';
-    return Promise.reject(new Error(message));
+    const data = error.response?.data || {};
+    const message = data.message || error.message || 'Something went wrong';
+    return Promise.reject(new ApiError(message, data.errors));
   }
 );
 
@@ -42,9 +51,7 @@ export const auth = {
 export const items = {
   getAll: (params) => api.get('/items', { params }),
   getById: (id) => api.get(`/items/${id}`),
-  create: (data) => api.post('/items', data, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
+  create: (data) => api.post('/items', data),
   update: (id, data) => api.patch(`/items/${id}`, data),
   delete: (id) => api.delete(`/items/${id}`),
 };
@@ -54,6 +61,14 @@ export const claims = {
   getById: (id) => api.get(`/claims/${id}`),
   submit: (data) => api.post('/claims', data),
   review: (id, data) => api.patch(`/claims/${id}/review`, data),
+};
+
+export const matches = {
+  getAll: () => api.get('/matches'),
+  getById: (id) => api.get(`/matches/${id}`),
+  updateStatus: (id, status) => api.patch(`/matches/${id}/status`, { status }),
+  getChat: (id) => api.get(`/matches/${id}/chat`),
+  askAI: (id, message) => api.post(`/matches/${id}/ask-ai`, { message, matchId: id }),
 };
 
 export const admin = {

@@ -1,21 +1,57 @@
 const Item = require('../models/Item');
 const AuditLog = require('../models/AuditLog');
-const { paginate, buildPaginationResponse } = require('../utils/helpers');
+const matchingService = require('../services/matchingService');
+const { paginate, buildPaginationResponse, sanitizeHtml } = require('../utils/helpers');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/response');
 const { NotFoundError, ForbiddenError } = require('../utils/errors');
+
+const sanitizeFields = (obj) => {
+  const textFields = ['title', 'description', 'category', 'location', 'building', 'room'];
+  const sanitized = { ...obj };
+  for (const key of Object.keys(sanitized)) {
+    if (typeof sanitized[key] === 'string') {
+      sanitized[key] = sanitizeHtml(sanitized[key].trim());
+    }
+  }
+  if (sanitized.tags && Array.isArray(sanitized.tags)) {
+    sanitized.tags = sanitized.tags.map(t => sanitizeHtml(t.trim())).filter(Boolean);
+  }
+  return sanitized;
+};
 
 exports.createItem = async (req, res, next) => {
   try {
     const itemData = { ...req.body, reportedBy: req.user._id };
 
+    if (typeof itemData.tags === 'string') {
+      itemData.tags = itemData.tags.split(',').map(t => t.trim()).filter(Boolean);
+    }
+
     if (req.files && req.files.length > 0) {
       itemData.images = req.files.map((file, idx) => ({
-        url: `/uploads/${file.filename}`,
+        url: file.path,
         isPrimary: idx === 0,
       }));
     }
 
-    const item = await Item.create(itemData);
+    const sanitized = sanitizeFields(itemData);
+    const item = await Item.create(sanitized);
+
+    let matches = [];
+    let matchMethod = 'none';
+
+    if (item.type === 'lost') {
+      const language = req.headers['accept-language'] || req.body.language || 'en';
+      const result = await matchingService.runMatchingForLostItem(item._id, language);
+      matches = result.matches;
+      matchMethod = result.method;
+    } else if (item.type === 'found') {
+      setImmediate(() => {
+        matchingService.runMatching(item._id).catch((err) => {
+          console.error('[Matching] Background match failed:', err.message);
+        });
+      });
+    }
 
     await AuditLog.create({
       action: 'ITEM_REPORTED',
@@ -27,7 +63,7 @@ exports.createItem = async (req, res, next) => {
       ipAddress: req.ip,
     });
 
-    sendCreated(res, { item }, `${item.type === 'lost' ? 'Lost' : 'Found'} item reported.`);
+    sendCreated(res, { item, matches, matchMethod }, `${item.type === 'lost' ? 'Lost' : 'Found'} item reported.`);
   } catch (error) {
     next(error);
   }
@@ -39,7 +75,7 @@ exports.getItems = async (req, res, next) => {
     const filter = { isDeleted: false };
 
     // Users can only see public items + their own
-    if (req.user.role === 'user') {
+    if (req.user && req.user.role === 'user') {
       filter.$or = [
         { visibility: 'public' },
         { reportedBy: req.user._id },
@@ -78,7 +114,7 @@ exports.getItem = async (req, res, next) => {
     if (!item) throw new NotFoundError('Item');
 
     // Security check: users can only view public items or their own
-    if (req.user.role === 'user' && item.visibility === 'private' && !item.reportedBy._id.equals(req.user._id)) {
+    if (req.user && req.user.role === 'user' && item.visibility === 'private' && !item.reportedBy._id.equals(req.user._id)) {
       throw new ForbiddenError('You do not have access to this item.');
     }
 
@@ -98,7 +134,21 @@ exports.updateItem = async (req, res, next) => {
     }
 
     const oldData = item.toObject();
-    Object.assign(item, req.body);
+
+    const updateData = { ...req.body };
+    if (typeof updateData.tags === 'string') {
+      updateData.tags = updateData.tags.split(',').map(t => t.trim()).filter(Boolean);
+    }
+
+    if (req.files && req.files.length > 0) {
+      updateData.images = req.files.map((file, idx) => ({
+        url: file.path,
+        isPrimary: idx === 0,
+      }));
+    }
+
+    const sanitized = sanitizeFields(updateData);
+    Object.assign(item, sanitized);
     item.lastModifiedBy = req.user._id;
     await item.save();
 
