@@ -11,7 +11,7 @@ router.post('/', validate(submitClaimSchema), claimController.submitClaim);
 router.get('/', claimController.getClaims);
 router.get('/:id', claimController.getClaim);
 router.patch('/:id/review',
-  authorize('security', 'admin'),
+  authorize('admin'),
   validate(reviewClaimSchema),
   claimController.reviewClaim
 );

@@ -54,14 +54,16 @@ const notifyOwner = async (match) => {
     },
   });
 
-  // 2. Automated Email Notification
-  await emailService.sendMatchEmail({
-    to: lostItem.reportedBy.email,
-    userName: lostItem.reportedBy.name,
-    itemTitle: lostItem.title,
-    matchScore: match.score,
-    matchUrl: `/matches/${match._id}`
-  });
+  // 2. Automated Email Notification (Only for High-Confidence Matches > 75%)
+  if (match.score > 75) {
+    await emailService.sendMatchEmail({
+      to: lostItem.reportedBy.email,
+      userName: lostItem.reportedBy.name,
+      itemTitle: lostItem.title,
+      matchScore: match.score,
+      matchUrl: `/matches/${match._id}`
+    });
+  }
 
   match.isNotified = true;
   match.notifiedAt = new Date();

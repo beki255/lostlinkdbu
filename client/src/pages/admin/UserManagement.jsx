@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { admin as adminApi } from '../../services/api';
 import { FiUsers, FiUserPlus, FiTrash2, FiSlash, FiCheckCircle, FiEye, FiSearch, FiFilter } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -9,7 +10,6 @@ export default function UserManagement() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newSecurity, setNewSecurity] = useState({ name: '', email: '', password: '', phone: '' });
 
   useEffect(() => {
     fetchUsers();
@@ -27,18 +27,6 @@ export default function UserManagement() {
     }
   };
 
-  const handleCreateSecurity = async (e) => {
-    e.preventDefault();
-    try {
-      await adminApi.createUser({ ...newSecurity, role: 'security' });
-      toast.success('Security personnel created successfully');
-      setShowCreateModal(false);
-      setNewSecurity({ name: '', email: '', password: '', phone: '' });
-      fetchUsers();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create security account');
-    }
-  };
 
   const handleAction = async (userId, action) => {
     try {
@@ -71,12 +59,6 @@ export default function UserManagement() {
           </h1>
           <p className="text-gray-500 dark:text-gray-400">Oversee system users and manage security personnel</p>
         </div>
-        <button 
-          onClick={() => setShowCreateModal(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <FiUserPlus /> Add Security Personnel
-        </button>
       </div>
 
       <div className="card mb-6">
@@ -99,7 +81,6 @@ export default function UserManagement() {
             >
               <option value="all">All Roles</option>
               <option value="user">Users</option>
-              <option value="security">Security</option>
               <option value="admin">Admins</option>
             </select>
           </div>
@@ -139,7 +120,6 @@ export default function UserManagement() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
                         u.role === 'admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
-                        u.role === 'security' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
                         'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
                       }`}>
                         {u.role}
@@ -153,9 +133,13 @@ export default function UserManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 transition-colors" title="View Profile">
+                        <Link 
+                          to={`/admin/users/${u._id}`}
+                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 transition-colors" 
+                          title="View Profile"
+                        >
                           <FiEye className="w-4 h-4" />
-                        </button>
+                        </Link>
                         <button 
                           onClick={() => handleAction(u._id, u.status === 'banned' ? 'unban' : 'ban')}
                           className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors ${u.status === 'banned' ? 'text-green-500' : 'text-orange-500'}`}
@@ -180,70 +164,6 @@ export default function UserManagement() {
         )}
       </div>
 
-      {showCreateModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100 dark:border-gray-700">
-            <h3 className="text-xl font-bold mb-6 text-gray-900 dark:text-gray-100">Add Security Personnel</h3>
-            <form onSubmit={handleCreateSecurity} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Full Name</label>
-                <input 
-                  type="text" 
-                  required
-                  value={newSecurity.name}
-                  onChange={(e) => setNewSecurity({...newSecurity, name: e.target.value})}
-                  className="input-field" 
-                  placeholder="Officer Name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Email Address</label>
-                <input 
-                  type="email" 
-                  required
-                  value={newSecurity.email}
-                  onChange={(e) => setNewSecurity({...newSecurity, email: e.target.value})}
-                  className="input-field" 
-                  placeholder="officer@lostlink.dbu"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Password</label>
-                <input 
-                  type="password" 
-                  required
-                  value={newSecurity.password}
-                  onChange={(e) => setNewSecurity({...newSecurity, password: e.target.value})}
-                  className="input-field" 
-                  placeholder="••••••••"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Phone Number</label>
-                <input 
-                  type="tel" 
-                  value={newSecurity.phone}
-                  onChange={(e) => setNewSecurity({...newSecurity, phone: e.target.value})}
-                  className="input-field" 
-                  placeholder="+251..."
-                />
-              </div>
-              <div className="flex gap-3 mt-8">
-                <button 
-                  type="button" 
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="flex-1 btn-primary">
-                  Create Account
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const config = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 5000,
+  appUrl: process.env.CLIENT_URL || 'http://localhost:5173',
 
   mongodb: {
     uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/lostlink',
@@ -27,9 +28,9 @@ const config = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   },
 
-  groq: {
-    apiKey: process.env.GROQ_API_KEY,
-    model: process.env.GROQ_MODEL || 'groq-1.0',
+  gemini: {
+    apiKeys: process.env.GEMINI_API_KEYS ? process.env.GEMINI_API_KEYS.split(',') : [],
+    model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
   },
 
   upload: {
@@ -44,7 +45,7 @@ const config = {
 
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiKey: process.env.CLOCDINARY_API_KEY,
     apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
 

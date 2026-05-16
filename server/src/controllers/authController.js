@@ -40,21 +40,13 @@ exports.register = async (req, res, next) => {
       console.log('');
     }
 
-    const emailSent = await sendEmail({
+    // Try to send email in background, don't fail registration
+    sendEmail({
       to: email,
-      subject: 'Verify Your LostLink Account',
+      subject: '[LostLink] Verify Your Account',
       otp,
       type: 'email_verification',
-    });
-
-    if (!emailSent) {
-      await User.findByIdAndDelete(user._id);
-      await OTP.deleteMany({ email, type: 'email_verification' });
-      throw new AppError(
-        'Unable to send verification email. Please check your email address or try again later.',
-        500
-      );
-    }
+    }).catch(err => console.error('[Register] Background email failed:', err.message));
 
     await AuditLog.create({
       action: 'USER_REGISTERED',
@@ -66,7 +58,8 @@ exports.register = async (req, res, next) => {
       userAgent: req.get('user-agent'),
     });
 
-    sendCreated(res, { userId: user._id }, 'Account created. Verification email sent.');
+    const token = generateToken(user._id, user.role);
+    sendCreated(res, { token, user: user.toPublicJSON() }, 'Account created successfully.');
   } catch (error) {
     next(error);
   }
@@ -75,7 +68,11 @@ exports.register = async (req, res, next) => {
 exports.verifyEmail = async (req, res, next) => {
   try {
     const { otp } = req.body;
-    const email = req.body.email?.toLowerCase().trim();
+    const email = (req.body.email || '').toString().toLowerCase().trim();
+
+    if (!email || !otp) {
+      throw new AppError('Email and OTP are required.', 400);
+    }
 
     const otpRecord = await OTP.findOne({
       email,
@@ -93,10 +90,12 @@ exports.verifyEmail = async (req, res, next) => {
     await otpRecord.save();
 
     const user = await User.findOneAndUpdate({ email }, { isVerified: true }, { new: true });
+    if (!user) throw new NotFoundError('User');
 
     const token = generateToken(user._id, user.role);
 
-    await AuditLog.create({
+    // Background audit log
+    AuditLog.create({
       action: 'EMAIL_VERIFIED',
       resource: 'User',
       resourceId: user._id,
@@ -104,76 +103,99 @@ exports.verifyEmail = async (req, res, next) => {
       performedByRole: user.role,
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
-    });
+    }).catch(e => console.error('[VerifyEmail] Audit log fail:', e.message));
 
-    sendSuccess(res, { token, user: user.toPublicJSON() }, 'Email verified successfully and logged in.');
+    return res.status(200).json({
+      success: true,
+      message: 'Email verified successfully.',
+      data: {
+        token,
+        user: user.toPublicJSON(),
+      }
+    });
   } catch (error) {
+    console.error('[CRITICAL] VerifyEmail Error:', error);
     next(error);
   }
 };
 
 exports.login = async (req, res, next) => {
+  console.log('[Login] Attempt starting...');
   try {
     const { password } = req.body;
-    const email = req.body.email?.toLowerCase().trim();
+    const email = (req.body.email || '').toString().toLowerCase().trim();
+
+    console.log('[Login] User lookup for:', email);
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required.' });
+    }
 
     const user = await User.findOne({ email, isDeleted: false }).select('+passwordHash');
     if (!user) {
-      throw new AppError('Invalid email or password.', 401);
+      console.log('[Login] User not found:', email);
+      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
 
+    console.log('[Login] Comparing password...');
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      throw new AppError('Invalid email or password.', 401);
+      console.log('[Login] Password mismatch for:', email);
+      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
 
     if (user.status === 'banned') {
-      throw new AppError('Your account has been banned. Please contact support.', 403);
+      return res.status(403).json({ success: false, message: 'Your account has been banned.' });
     }
 
+    // Direct Verification check with redirect
     if (!user.isVerified) {
+      console.log('[Login] User not verified, handling redirect...');
       const otp = generateOTP();
-      await OTP.deleteMany({ email, type: 'email_verification', isUsed: false });
-      await OTP.create({
-        email,
-        otp,
-        type: 'email_verification',
-        expiresAt: new Date(Date.now() + config.otp.expiresIn),
-      });
+      try {
+        await OTP.deleteMany({ email, type: 'email_verification', isUsed: false });
+        await OTP.create({
+          email,
+          otp,
+          type: 'email_verification',
+          expiresAt: new Date(Date.now() + (5 * 60 * 1000)), // 5 mins
+        });
+        sendEmail({
+          to: email,
+          subject: '[LostLink] Verify Your Account',
+          otp,
+          type: 'email_verification',
+        }).catch(e => console.error('[Login] Bg Email Fail:', e.message));
 
-      await sendEmail({
-        to: email,
-        subject: 'Verify Your LostLink Account',
-        otp,
-        type: 'email_verification',
-      });
-
-      return res.status(403).json({
-        success: false,
-        message: 'Email not verified. A new verification code has been sent to your inbox.',
-        code: 'EMAIL_NOT_VERIFIED',
-        email
-      });
+        return res.status(403).json({
+          success: false,
+          code: 'EMAIL_NOT_VERIFIED',
+          message: 'Please verify your email.',
+          email,
+        });
+      } catch (otpErr) {
+        console.error('[Login] OTP/Email block failed, but continuing login:', otpErr.message);
+      }
     }
 
+    console.log('[Login] Generating token...');
     const token = generateToken(user._id, user.role);
-
-    await AuditLog.create({
-      action: 'USER_LOGIN',
-      resource: 'User',
-      resourceId: user._id,
-      performedBy: user._id,
-      performedByRole: user.role,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+    
+    console.log('[Login] Success for:', email);
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful.',
+      data: {
+        token,
+        user: user.toPublicJSON(),
+      }
     });
-
-    sendSuccess(res, {
-      token,
-      user: user.toPublicJSON(),
-    }, 'Login successful.');
   } catch (error) {
-    next(error);
+    console.error('[CRITICAL] Login Controller Crash:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error during login.',
+      debug: error.message 
+    });
   }
 };
 
@@ -273,47 +295,42 @@ exports.getMe = async (req, res, next) => {
 
 exports.resendOtp = async (req, res, next) => {
   try {
-    const email = req.body.email?.toLowerCase().trim();
+    const email = (req.body.email || '').toString().toLowerCase().trim();
+    if (!email) throw new AppError('Email is required.', 400);
 
     const user = await User.findOne({ email, isDeleted: false });
-    if (!user) throw new NotFoundError('User');
+    if (!user) {
+      // Still return success to prevent email enumeration, or return 404 in dev
+      return res.status(200).json({ success: true, message: 'If the account exists, a new code has been sent.' });
+    }
 
     const type = req.body.type || 'email_verification';
-    if (!['email_verification', 'password_reset'].includes(type)) {
-      throw new AppError('Invalid OTP type.', 400);
-    }
-
     if (type === 'email_verification' && user.isVerified) {
-      return sendSuccess(res, null, 'Email is already verified.');
+      return res.status(200).json({ success: true, message: 'Email is already verified.' });
     }
-
-    await OTP.deleteMany({ email, type, isUsed: false });
 
     const otp = generateOTP();
+    await OTP.deleteMany({ email, type, isUsed: false });
     await OTP.create({
       email,
       otp,
       type,
-      expiresAt: new Date(Date.now() + config.otp.expiresIn),
+      expiresAt: new Date(Date.now() + (config.otp.expiresIn || 300000)),
     });
 
-    const subject = type === 'email_verification' 
-      ? 'Verify Your LostLink Account' 
-      : 'Reset Your LostLink Password';
-
-    const emailSent = await sendEmail({
+    sendEmail({
       to: email,
-      subject,
+      subject: type === 'password_reset' ? '[LostLink] Reset Your Password' : '[LostLink] Verify Your Account',
       otp,
       type,
+    }).catch(err => console.error('[ResendOTP] Background email fail:', err.message));
+
+    return res.status(200).json({ 
+      success: true, 
+      message: 'A new verification code has been sent to your email.' 
     });
-
-    if (!emailSent) {
-      throw new AppError('Unable to send verification email. Please try again later.', 500);
-    }
-
-    sendSuccess(res, null, 'A new OTP has been sent to your email.');
   } catch (error) {
+    console.error('[CRITICAL] ResendOTP Error:', error);
     next(error);
   }
 };
@@ -376,6 +393,9 @@ exports.googleAuth = async (req, res, next) => {
         ipAddress: req.ip,
       });
     } else {
+      if (user.status === 'banned') {
+        throw new AppError('Your account has been banned. Please contact support.', 403);
+      }
       if (!user.googleId) {
         user.googleId = googleId;
         if (picture) user.avatar = picture;

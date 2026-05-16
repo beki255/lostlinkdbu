@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { FiUser, FiMail, FiLock, FiArrowRight, FiCheckCircle, FiShield, FiBook } from 'react-icons/fi';
-import { FcGoogle } from 'react-icons/fc';
+import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
 
 export default function Register() {
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -15,6 +15,20 @@ export default function Register() {
     password: '',
     confirmPassword: '',
   });
+
+  const onGoogleSuccess = async (credentialResponse) => {
+    try {
+      await googleLogin(credentialResponse.credential);
+      toast.success('Welcome to LostLink!');
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      toast.error(err.message || 'Google registration failed');
+    }
+  };
+
+  const onGoogleError = () => {
+    toast.error('Google Sign-In failed');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,7 +43,7 @@ export default function Register() {
         password: formData.password,
       });
       toast.success('Account created! Please verify your email.');
-      navigate('/login');
+      navigate('/verify-email', { state: { email: formData.email } });
     } catch (err) {
       toast.error(err.message || 'Registration failed');
     } finally {
@@ -191,13 +205,18 @@ export default function Register() {
                 <span className="relative px-4 bg-transparent text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Or Register with</span>
               </div>
 
-              <button
-                type="button"
-                className="w-full bg-white text-slate-900 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl hover:bg-slate-50 transition-all active:scale-[0.98]"
-              >
-                <FcGoogle className="w-6 h-6" />
-                Google Account
-              </button>
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={onGoogleSuccess}
+                  onError={onGoogleError}
+                  useOneTap
+                  theme="filled_blue"
+                  shape="pill"
+                  width="350"
+                  text="signup_with"
+                  size="large"
+                />
+              </div>
             </div>
 
             <div className="mt-10 text-center">

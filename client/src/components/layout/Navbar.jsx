@@ -66,20 +66,16 @@ export default function Navbar() {
   const navLinks = [];
   if (isAuthenticated) {
     navLinks.push({ to: '/dashboard', label: t('nav.dashboard') });
-    if (!hasRole('admin') && !hasRole('security')) {
+    if (!hasRole('admin')) {
       navLinks.push({ to: '/report', label: t('nav.report') });
       navLinks.push({ to: '/items', label: 'Find Item' });
     }
     if (hasRole('admin')) {
       // navLinks.push({ to: '/admin', label: 'Overview' });
       navLinks.push({ to: '/admin/users', label: 'User Mgmt' });
-      navLinks.push({ to: '/admin/cms', label: 'CMS' });
       navLinks.push({ to: '/admin/reports', label: 'Reports' });
       navLinks.push({ to: '/admin/lost-found', label: 'L&F Users' });
       navLinks.push({ to: '/admin/received', label: 'Received' });
-    }
-    if (hasRole('security')) {
-      navLinks.push({ to: '/dashboard', label: 'Device Mgmt' });
     }
   }
 

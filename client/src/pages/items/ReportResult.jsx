@@ -4,12 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { items as itemsApi, matches as matchesApi } from '../../services/api';
 import toast from 'react-hot-toast';
 import {
-  FiCheckCircle, FiPercent, FiMessageCircle, FiCpu, FiSend,
+  FiCheckCircle, FiPercent, FiMessageCircle, FiSend,
   FiMapPin, FiTag, FiUser, FiAlertCircle, FiRefreshCw,
-  FiArrowRight, FiInfo, FiCpu as FiAi, FiMail, FiPhone
+  FiArrowRight, FiInfo, FiMail, FiPhone, FiPackage, FiSearch
 } from 'react-icons/fi';
 
-const MatchCard = ({ match, onChat, onViewDetails, onSelect }) => (
+const MatchCard = ({ match, onChat, onSelect }) => (
   <div className="card border-2 border-green-300 bg-green-50/30 dark:border-green-800 dark:bg-green-900/10 p-0 overflow-hidden">
     <div className="flex flex-col sm:flex-row">
       {/* Image Section */}
@@ -23,7 +23,7 @@ const MatchCard = ({ match, onChat, onViewDetails, onSelect }) => (
           <img src={match.foundItem.images[0].url} alt={match.foundItem.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400">
-            <FiCpu className="w-12 h-12 opacity-20" />
+            <FiPackage className="w-12 h-12 opacity-20" />
           </div>
         )}
         <div className="absolute top-2 left-2 px-2 py-1 bg-green-600 text-white text-[10px] font-bold rounded-md shadow-lg">
@@ -62,11 +62,6 @@ const MatchCard = ({ match, onChat, onViewDetails, onSelect }) => (
             </div>
           )}
 
-          {match.aiExplanation && (
-            <div className="mt-3 p-3 bg-white/50 border border-green-100 rounded-xl dark:bg-black/20 dark:border-green-900/30">
-              <p className="text-xs text-green-800 dark:text-green-300 leading-relaxed italic line-clamp-2">"{match.aiExplanation}"</p>
-            </div>
-          )}
         </div>
 
         <div className="flex gap-2 mt-4">
@@ -95,13 +90,8 @@ export default function ReportResult() {
   const [matches, setMatches] = useState(routeState?.matches || []);
   const [matchMethod, setMatchMethod] = useState(routeState?.matchMethod || '');
   const [loading, setLoading] = useState(true);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiMessages, setAiMessages] = useState([]);
-  const [aiInput, setAiInput] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
   const [noMatchExplanation, setNoMatchExplanation] = useState(null);
   const [explanationLoading, setExplanationLoading] = useState(false);
-  const aiEndRef = useRef(null);
 
   useEffect(() => {
     itemsApi.getById(itemId)
@@ -140,7 +130,6 @@ export default function ReportResult() {
     }
   }, [loading, matches, item, itemId, noMatchExplanation, explanationLoading]);
 
-  useEffect(() => { aiEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [aiMessages]);
 
   const handleOpenChat = async (match) => {
     try {
@@ -153,19 +142,6 @@ export default function ReportResult() {
     navigate(`/matches/${match._id}`);
   };
 
-  const askAI = async () => {
-    if (!aiInput.trim() || aiLoading) return;
-    const question = aiInput.trim();
-    setAiInput('');
-    setAiMessages((prev) => [...prev, { role: 'user', content: question }]);
-    setAiLoading(true);
-    try {
-      const res = await matchesApi.askAI(itemId, question);
-      setAiMessages((prev) => [...prev, { role: 'assistant', content: res.data.answer }]);
-    } catch {
-      setAiMessages((prev) => [...prev, { role: 'assistant', content: generateLocalAnswer(item, matches, question) }]);
-    } finally { setAiLoading(false); }
-  };
 
   if (loading) return (
     <div className="page-container max-w-3xl text-center py-20">
@@ -183,17 +159,12 @@ export default function ReportResult() {
         </div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Item Reported Successfully!</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">{item?.title} &mdash; Lost item</p>
-        {matchMethod === 'ai' && (
-          <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 bg-purple-50 border border-purple-200 rounded-full text-sm text-purple-700 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-300">
-            <FiAi className="w-4 h-4" /> AI-powered matching
-          </div>
-        )}
       </div>
 
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <FiPercent className="w-6 h-6 text-primary-500 dark:text-primary-400" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">AI Match Results</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Match Results</h2>
         </div>
         {matches.length > 0 && (
           <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -204,7 +175,7 @@ export default function ReportResult() {
 
       {matches.length === 0 ? (
         <div className="card text-center py-12">
-          <FiCpu className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+          <FiSearch className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{t('match.noMatchesTitle')}</h3>
 
           {explanationLoading ? (
@@ -216,7 +187,7 @@ export default function ReportResult() {
             <div className="max-w-lg mx-auto mb-4">
               <div className="bg-purple-50 border border-purple-100 rounded-xl p-5 text-left dark:bg-purple-900/20 dark:border-purple-800">
                 <div className="flex items-start gap-3">
-                  <FiCpu className="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" />
+                  <FiInfo className="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-purple-900 dark:text-purple-100 leading-relaxed whitespace-pre-line">{noMatchExplanation}</p>
                 </div>
               </div>
@@ -243,7 +214,6 @@ export default function ReportResult() {
               match={match} 
               onChat={handleOpenChat} 
               onSelect={handleSelectMatch}
-              onViewDetails={handleViewDetails} 
             />
           ))}
         </div>
@@ -269,63 +239,6 @@ export default function ReportResult() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <FiCpu className="w-5 h-5 text-primary-500 dark:text-primary-400" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">AI Assistant</h2>
-          </div>
-          <button onClick={() => setAiOpen(!aiOpen)}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition ${aiOpen ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-            {aiOpen ? 'Hide' : 'Ask AI'}
-          </button>
-        </div>
-        {aiOpen && (
-          <div className="space-y-3">
-            <div className="h-72 overflow-y-auto space-y-3 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl text-sm">
-              {aiMessages.length === 0 && (
-                <div className="text-center text-gray-400 dark:text-gray-500 py-10">
-                  <FiCpu className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                  <p>I'm your AI assistant for <strong>{item?.title || 'your item'}</strong>.</p>
-                  <p className="text-xs mt-2">Ask me about match results, next steps, or item details.</p>
-                  <div className="flex flex-wrap gap-2 justify-center mt-4">
-                    {['What are my next steps?', 'How does the AI matching work?', 'Tell me about my item', 'What should I do while waiting?'].map((q) => (
-                      <button key={q} onClick={() => setAiInput(q)}
-                        className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-600 dark:text-gray-400 hover:border-primary-300 hover:text-primary-600 dark:hover:text-primary-400 transition">
-                        {q}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {aiMessages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-sm px-4 py-2.5 rounded-2xl whitespace-pre-line ${msg.role === 'user' ? 'bg-primary-500 text-white' : 'bg-white border border-gray-200 text-gray-800'}`}>
-                    {msg.content}
-                  </div>
-                </div>
-              ))}
-              {aiLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white border border-gray-200 rounded-2xl px-4 py-2.5 text-gray-400 text-sm">
-                    <span className="animate-pulse">Thinking</span>
-                  </div>
-                </div>
-              )}
-              <div ref={aiEndRef} />
-            </div>
-            <div className="flex gap-2">
-              <input type="text" value={aiInput}
-                onChange={(e) => setAiInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && askAI()}
-                placeholder="Ask about your item or matches..." className="input-field flex-1" />
-              <button onClick={askAI} disabled={aiLoading || !aiInput.trim()} className="btn-primary px-4">
-                <FiSend className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
 
       <div className="flex gap-3 justify-center mt-8">
         <Link to="/matches" className="btn-secondary flex items-center gap-2">

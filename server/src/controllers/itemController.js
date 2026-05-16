@@ -88,7 +88,7 @@ exports.getItems = async (req, res, next) => {
     const { page, limit, skip } = paginate(req.query.page, req.query.limit);
     const filter = { isDeleted: false };
 
-    const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'security');
+    const isAdmin = req.user && req.user.role === 'admin';
 
     if (!req.user) {
       return sendPaginated(res, { items: [] }, buildPaginationResponse(0, page, limit));
@@ -129,7 +129,7 @@ exports.getItems = async (req, res, next) => {
       // Censor found items for regular users
       // REMOVED as per user request to use 70% and remove restrictions
       /*
-      const isAuthorized = req.user && (req.user.role === 'admin' || req.user.role === 'security' || item.reportedBy._id.equals(req.user._id));
+      const isAuthorized = req.user && (req.user.role === 'admin' || item.reportedBy._id.equals(req.user._id));
       
       if (itemObj.type === 'found' && !isAuthorized) {
         itemObj.images = []; // Hide images
@@ -185,7 +185,7 @@ exports.getItem = async (req, res, next) => {
 
     if (!item) throw new NotFoundError('Item');
 
-    const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'security');
+    const isAdmin = req.user && req.user.role === 'admin';
 
     // Non-admin users cannot see resolved items at all — they are hidden
     if (!isAdmin && item.status === 'resolved') {

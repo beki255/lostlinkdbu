@@ -19,7 +19,6 @@ const claimRoutes = require('./routes/claimRoutes');
 const matchRoutes = require('./routes/matchRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-const securityRoutes = require('./routes/securityRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 
@@ -56,6 +55,15 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '..', config.upload.dir)));
 
+// Debug middleware
+if (config.env === 'development') {
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    if (req.method === 'POST') console.log('Body:', req.body);
+    next();
+  });
+}
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
@@ -72,10 +80,10 @@ app.use('/api/items', itemRoutes);
 app.use('/api/claims', claimRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/security', securityRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/public', publicRoutes);
+// app.use('/api/feedback', require('./routes/feedbackRoutes'));
 
 // 404 handler
 app.use((req, res) => {

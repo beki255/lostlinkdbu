@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { admin as adminApi, security as securityApi } from '../../services/api';
+import { admin as adminApi } from '../../services/api';
 import { FiUsers, FiClipboard, FiShield, FiActivity, FiEdit2, FiDownload, FiTrash2, FiUser, FiCpu } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import {
@@ -16,7 +16,6 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState(null);
   const [users, setUsers] = useState([]);
-  const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUserId, setEditingUserId] = useState(null);
   const [editingRole, setEditingRole] = useState('user');
@@ -27,18 +26,16 @@ export default function AdminDashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [statsRes, reportsRes, usersRes, devicesRes, lostFoundUsersRes] = await Promise.all([
+        const [statsRes, reportsRes, usersRes, lostFoundUsersRes] = await Promise.all([
           adminApi.getStats(),
           adminApi.getReports(),
           adminApi.getUsers({ limit: 50 }),
-          securityApi.getDevices({ limit: 50 }),
           adminApi.getLostFoundUsers({ limit: 50 }),
         ]);
 
         setStats(statsRes.data?.stats || {});
         setReports(reportsRes.data?.reports || {});
         setUsers(usersRes.data?.users || []);
-        setDevices(devicesRes.data?.devices || []);
         setLostFoundUsers(lostFoundUsersRes.data?.users || []);
       } catch (error) {
         console.error(error);
@@ -97,7 +94,6 @@ export default function AdminDashboard() {
       { name: 'Users', value: stats?.totalUsers || 0, color: '#3DBBD2' }, // Sky Blue
       { name: 'Items', value: stats?.totalItems || 0, color: '#FCDD4F' }, // Gold
       { name: 'Claims', value: stats?.totalClaims || 0, color: '#E52D2D' }, // Red
-      { name: 'Devices', value: devices.length || 0, color: '#287F40' }, // Green
     ];
 
     const COLORS = ['#3DBBD2', '#FCDD4F', '#E52D2D', '#287F40'];
@@ -110,7 +106,6 @@ export default function AdminDashboard() {
             { label: 'Total Users', value: stats?.totalUsers || 0, icon: FiUsers, color: 'text-dbu-blue bg-dbu-blue/10 dark:text-dbu-blue' },
             { label: 'Total Items', value: stats?.totalItems || 0, icon: FiClipboard, color: 'text-dbu-gold bg-dbu-gold/10 dark:text-dbu-gold' },
             { label: 'Total Claims', value: stats?.totalClaims || 0, icon: FiActivity, color: 'text-dbu-red bg-dbu-red/10 dark:text-dbu-red' },
-            { label: 'Registered Devices', value: devices.length || 0, icon: FiShield, color: 'text-dbu-green bg-dbu-green/10 dark:text-dbu-green' },
           ].map((s) => (
             <div key={s.label} className="card transform hover:scale-[1.02] transition-transform duration-200">
               <div className="flex items-center justify-between">

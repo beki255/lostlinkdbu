@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { FiMail, FiLock, FiArrowRight, FiCheckCircle, FiShield } from 'react-icons/fi';
-import { FcGoogle } from 'react-icons/fc';
+import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
@@ -16,6 +16,20 @@ export default function Login() {
   });
 
   const from = location.state?.from?.pathname || '/dashboard';
+
+  const onGoogleSuccess = async (credentialResponse) => {
+    try {
+      await googleLogin(credentialResponse.credential);
+      toast.success('Welcome back!');
+      navigate(from, { replace: true });
+    } catch (err) {
+      toast.error(err.message || 'Google login failed');
+    }
+  };
+
+  const onGoogleError = () => {
+    toast.error('Google Sign-In failed');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -167,13 +181,18 @@ export default function Login() {
                 <span className="relative px-4 bg-transparent text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Or continue with</span>
               </div>
 
-              <button
-                type="button"
-                className="w-full bg-white text-slate-900 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl hover:bg-slate-50 transition-all active:scale-[0.98]"
-              >
-                <FcGoogle className="w-6 h-6" />
-                Google Account
-              </button>
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={onGoogleSuccess}
+                  onError={onGoogleError}
+                  useOneTap
+                  theme="filled_blue"
+                  shape="pill"
+                  width="350"
+                  text="signin_with"
+                  size="large"
+                />
+              </div>
             </div>
 
             <div className="mt-10 text-center">

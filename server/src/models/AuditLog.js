@@ -21,7 +21,7 @@ const auditLogSchema = new mongoose.Schema({
   },
   performedByRole: {
     type: String,
-    enum: ['user', 'security', 'admin'],
+    enum: ['user', 'admin'],
   },
   changes: {
     old: mongoose.Schema.Types.Mixed,

@@ -15,7 +15,7 @@ exports.getMessages = async (req, res, next) => {
       return pId.toString() === req.user._id.toString();
     });
     
-    const isAuthorized = isParticipant || req.user.role === 'admin' || req.user.role === 'security';
+    const isAuthorized = isParticipant || req.user.role === 'admin';
     if (!isAuthorized) {
       throw new ForbiddenError('You are not authorized to view this chat.');
     }
@@ -53,7 +53,7 @@ exports.sendMessage = async (req, res, next) => {
       return pId.toString() === req.user._id.toString();
     });
     
-    const isAuthorized = isParticipant || req.user.role === 'admin' || req.user.role === 'security';
+    const isAuthorized = isParticipant || req.user.role === 'admin';
     if (!isAuthorized) {
       throw new ForbiddenError('You are not authorized to send messages in this chat.');
     }

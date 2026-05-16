@@ -9,7 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 const typeConfig = {
-  item_matched: { icon: FiCpu, color: 'text-purple-500', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+  item_matched: { icon: FiCheckCircle, color: 'text-purple-500', bg: 'bg-purple-100 dark:bg-purple-900/30' },
   new_message: { icon: FiMessageCircle, color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/30' },
   claim_submitted: { icon: FiFileText, color: 'text-yellow-500', bg: 'bg-yellow-100 dark:bg-yellow-900/30' },
   claim_approved: { icon: FiCheckCircle, color: 'text-green-500', bg: 'bg-green-100 dark:bg-green-900/30' },

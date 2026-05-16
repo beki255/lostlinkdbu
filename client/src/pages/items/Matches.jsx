@@ -104,7 +104,7 @@ export default function Matches() {
 
       {displayMatches.length === 0 ? (
         <div className="card text-center py-12">
-          <FiCpu className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <FiSearch className="w-16 h-16 mx-auto mb-4 text-gray-300" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('match.noMatchesTitle')}</h3>
 
           {explanationLoading ? (

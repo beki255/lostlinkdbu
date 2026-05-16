@@ -74,7 +74,6 @@ export function AuthProvider({ children }) {
       user, loading, login, googleLogin, register, logout, updateProfile, changePassword, completeAuth,
       isAuthenticated: !!user,
       isAdmin: user?.role === 'admin',
-      isSecurity: user?.role === 'security',
       isUser: user?.role === 'user',
     }}>
       {children}

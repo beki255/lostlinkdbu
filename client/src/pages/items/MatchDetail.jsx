@@ -27,11 +27,6 @@ export default function MatchDetail() {
   const [match, setMatch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiMessages, setAiMessages] = useState([]);
-  const [aiInput, setAiInput] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
-  const aiEndRef = useRef(null);
 
   // Chat State
   const [chatOpen, setChatOpen] = useState(false);
@@ -50,7 +45,7 @@ export default function MatchDetail() {
       .then((res) => {
         const m = res.data.match;
         // If resolved and user is not admin, redirect away
-        if (m.status === 'resolved' && user?.role !== 'admin' && user?.role !== 'security') {
+        if (m.status === 'resolved' && user?.role !== 'admin') {
           toast.success('This item has been successfully recovered! 🎉');
           navigate('/items');
           return;
@@ -61,7 +56,6 @@ export default function MatchDetail() {
       .finally(() => setLoading(false));
   }, [id, navigate, user]);
 
-  useEffect(() => { aiEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [aiMessages]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
   useEffect(() => {
@@ -118,7 +112,6 @@ export default function MatchDetail() {
       setChatInfo(res.data.chat);
       setChatMessages(res.data.chat.messages || []);
       setChatOpen(true);
-      setAiOpen(false); // Close AI if chat opens
     } catch (err) {
       toast.error('Failed to open chat');
     } finally {
@@ -183,21 +176,6 @@ export default function MatchDetail() {
     }
   };
 
-  const askAI = async () => {
-    if (!aiInput.trim() || aiLoading) return;
-    const question = aiInput.trim();
-    setAiInput('');
-    setAiMessages((prev) => [...prev, { role: 'user', content: question }]);
-    setAiLoading(true);
-    try {
-      const res = await matchesApi.askAI(id, question);
-      setAiMessages((prev) => [...prev, { role: 'assistant', content: res.data.answer }]);
-    } catch (err) {
-      setAiMessages((prev) => [...prev, { role: 'assistant', content: 'Sorry, I could not process that request.' }]);
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   if (loading) return <div className="page-container text-center py-16 text-gray-500 dark:text-gray-400">Loading...</div>;
   if (!match) return null;
@@ -404,94 +382,7 @@ export default function MatchDetail() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Floating AI Assistant Widget (Bottom-Left) */}
-      <div className="fixed bottom-6 left-6 z-[60]">
-        {!aiOpen ? (
-          <button 
-            onClick={() => setAiOpen(true)}
-            className="w-16 h-16 bg-primary-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-primary-700 transition-all active:scale-95 group relative"
-          >
-            <FiCpu className="w-8 h-8" />
-            <div className="absolute left-full ml-4 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl">
-              Ask AI Assistant
-            </div>
-          </button>
-        ) : (
-          <div className="w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden border border-gray-100 dark:border-gray-700">
-            {/* AI Header */}
-            <div className="px-4 py-3 bg-primary-600 text-white flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FiCpu className="w-5 h-5" />
-                <div>
-                  <p className="text-xs font-bold leading-none">AI Assistant</p>
-                  <p className="text-[10px] opacity-70 mt-0.5 uppercase tracking-widest">Match Analysis Expert</p>
-                </div>
-              </div>
-              <button onClick={() => setAiOpen(false)} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors">
-                <FiXCircle className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* AI Messages Area */}
-            <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900/40">
-              {aiMessages.length === 0 ? (
-                <div className="text-center text-gray-400 dark:text-gray-500 py-12">
-                  <FiCpu className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                  <p className="text-xs">Ask me anything about this match!</p>
-                </div>
-              ) : (
-                aiMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] px-3 py-2 rounded-2xl shadow-sm ${
-                      msg.role === 'user' 
-                        ? 'bg-primary-600 text-white rounded-tr-none' 
-                        : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none'
-                    }`}>
-                      <p className="text-xs leading-relaxed">{msg.content}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-              {aiLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-2xl rounded-tl-none">
-                    <div className="flex gap-1">
-                      <span className="w-1 h-1 bg-primary-400 rounded-full animate-bounce" />
-                      <span className="w-1 h-1 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1 h-1 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={aiEndRef} />
-            </div>
-
-            {/* AI Input */}
-            <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && askAI()}
-                  placeholder={match.status === 'resolved' ? "AI Assistant disabled for resolved matches" : "Ask about this match..."}
-                  disabled={aiLoading || match.status === 'resolved'}
-                  className="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-900/50 border-none rounded-xl outline-none focus:ring-1 focus:ring-primary-500 text-xs transition-all dark:text-white disabled:opacity-50" 
-                />
-                <button 
-                  onClick={askAI} 
-                  disabled={aiLoading || !aiInput.trim() || match.status === 'resolved'}
-                  className="p-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-primary-500/20"
-                >
-                  <FiSend className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      </div>>
 
       {/* Floating Real-Time Chat Widget (The "One Button" Always) */}
       <div className="fixed bottom-6 right-6 z-[60]">

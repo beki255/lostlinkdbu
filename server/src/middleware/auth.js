@@ -18,7 +18,10 @@ const authenticate = async (req, res, next) => {
       throw new AppError('User not found or deactivated.', 401);
     }
     if (!user.isVerified) {
-      throw new AppError('Please verify your email before accessing this resource. Check your inbox for the verification code.', 403);
+      throw new AppError('Please verify your email before accessing this resource.', 403);
+    }
+    if (user.status === 'banned') {
+      throw new AppError('Your account has been banned. Please contact support.', 403);
     }
 
     req.user = user;

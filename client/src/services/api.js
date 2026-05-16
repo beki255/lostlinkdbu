@@ -55,8 +55,6 @@ export const items = {
   create: (data) => api.post('/items', data),
   update: (id, data) => api.patch(`/items/${id}`, data),
   delete: (id) => api.delete(`/items/${id}`),
-  runAiMatching: (id) => api.post(`/items/${id}/ai-matches`),
-  getNoMatchExplanation: (id) => api.post(`/items/${id}/no-match-explanation`),
   search: (params) => api.get('/items/search', { params }),
 };
 
@@ -73,7 +71,6 @@ export const matches = {
   createManualMatch: (data) => api.post('/matches', data),
   updateStatus: (id, status) => api.patch(`/matches/${id}/status`, { status }),
   getChat: (id) => api.get(`/matches/${id}/chat`),
-  askAI: (id, message) => api.post(`/matches/${id}/ask-ai`, { message, matchId: id }),
 };
 
 export const notifications = {
@@ -105,12 +102,6 @@ export const admin = {
   getReceivedItems: (params) => api.get('/admin/received-items', { params }),
 };
 
-export const security = {
-  getDevices: (params) => api.get('/security/devices', { params }),
-  registerDevice: (data) => api.post('/security/devices', data),
-  getDevice: (id) => api.get(`/security/devices/${id}`),
-  deleteDevice: (id) => api.delete(`/security/devices/${id}`),
-};
 
 export const chat = {
   getMessages: (chatId) => api.get(`/chat/${chatId}`),

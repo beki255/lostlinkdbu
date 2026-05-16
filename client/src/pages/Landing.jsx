@@ -57,55 +57,6 @@ export default function Landing() {
         ease: 'power4.out'
       });
 
-      // Grid Cards Advanced Scroll Transition
-      gridCardsRef.current.forEach((card, index) => {
-        if (!card) return;
-        
-        // Random starting positions in the Hero area
-        const startPositions = [
-          { x: -400, y: -200, rotation: -15, scale: 0.8 },
-          { x: 400, y: -150, rotation: 10, scale: 0.7 },
-          { x: -350, y: 150, rotation: 12, scale: 0.9 },
-          { x: 350, y: 200, rotation: -8, scale: 0.75 }
-        ];
-        const start = startPositions[index % startPositions.length];
-
-        gsap.fromTo(card, 
-          { 
-            opacity: 0,
-            x: start.x,
-            y: start.y,
-            rotation: start.rotation,
-            scale: start.scale,
-          },
-          {
-            opacity: 1,
-            x: 0,
-            y: 0,
-            rotation: 0,
-            scale: 1,
-            ease: 'power2.inOut',
-            scrollTrigger: {
-              trigger: heroRef.current,
-              start: 'top top',
-              endTrigger: howItWorksRef.current,
-              end: 'top 30%',
-              scrub: 1.5,
-              immediateRender: false
-            }
-          }
-        );
-
-        // Floating hover animation for the cards once they land
-        gsap.to(card, {
-          y: 'random(-10, 10)',
-          duration: 'random(2, 4)',
-          repeat: -1,
-          yoyo: true,
-          ease: 'sine.inOut',
-          delay: index * 0.2
-        });
-      });
 
       // Fade-in sections
       const sections = ['.section-reveal'];
@@ -144,11 +95,11 @@ export default function Landing() {
     hero: {
       title: "Lost Something?",
       subtitle: "We Help You Find It.",
-      description: "LostLink DBU is your intelligent campus companion — report, search, and reclaim lost items with AI-powered matching and secure verification."
+      description: "LostLink DBU is your campus companion — report, search, and reclaim lost items with automated matching and secure verification."
     },
     steps: [
       { icon: FiCamera, title: "Report It", desc: "Snap a photo and describe the item you lost or found." },
-      { icon: FiSearch, title: "AI Matching", desc: "Our smart algorithms scan for potential matches instantly." },
+      { icon: FiSearch, title: "Smart Search", desc: "Our smart algorithms scan for potential matches instantly." },
       { icon: FiMessageCircle, title: "Connect", desc: "Chat securely with the other party to arrange a return." },
       { icon: FiShield, title: "Recover", desc: "Safe handover with secure verification protocols." }
     ],
@@ -162,7 +113,7 @@ export default function Landing() {
       ]
     },
     contact: {
-      email: "support@dbu.edu.et",
+      email: "lostlinkdbu@gmail.com",
       phone: "+251 11 123 4567",
       location: "Main Campus, Admin Building, Room 204"
     }
@@ -239,7 +190,7 @@ export default function Landing() {
       {/* How It Works Section */}
       <section id="how-it-works" ref={howItWorksRef} className="py-32 relative bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-24 section-reveal">
+          <div className="text-center mb-24">
             <h2 className="text-5xl font-black text-gray-900 dark:text-white mb-6 tracking-tight">Simple. Secure. Smart.</h2>
             <p className="text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
               Our automated workflow takes the guesswork out of recovery.
@@ -392,7 +343,7 @@ export default function Landing() {
                 <span className="font-black text-3xl tracking-tighter uppercase text-dbu-blue">LostLink</span>
               </Link>
               <p className="text-gray-400 text-lg leading-relaxed max-w-sm mb-8">
-                The most advanced AI-powered lost and found management system for modern universities.
+                The most advanced lost and found management system for modern universities.
               </p>
               <div className="flex gap-4">
                 {/* Social icons could go here */}

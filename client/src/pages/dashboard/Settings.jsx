@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { auth as authApi } from '../../services/api';
 import toast from 'react-hot-toast';
 import { FiUser, FiMail, FiPhone, FiBook, FiLock, FiLogOut, FiTrash2, FiUpload, FiCamera } from 'react-icons/fi';
 
 export default function Settings() {
+  const navigate = useNavigate();
   const { user, updateProfile, changePassword: changePasswordContext, logout } = useAuth();
   const fileInputRef = useRef(null);
 
@@ -380,6 +382,7 @@ export default function Settings() {
             <button
               onClick={() => {
                 logout();
+                navigate('/');
                 toast.success('Logged out successfully');
               }}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"

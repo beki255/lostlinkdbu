@@ -10,6 +10,5 @@ router.post('/', matchController.createMatch);
 router.get('/:id', matchController.getMatch);
 router.patch('/:id/status', matchController.updateMatchStatus);
 router.get('/:id/chat', matchController.getMatchChat);
-router.post('/:id/ask-ai', matchController.askAI);
 
 module.exports = router;

@@ -9,7 +9,6 @@ import VerifyOtp from './pages/auth/VerifyOtp';
 import ResetPassword from './pages/auth/ResetPassword';
 import VerifyEmail from './pages/auth/VerifyEmail';
 import UserDashboard from './pages/dashboard/UserDashboard';
-import SecurityDashboard from './pages/dashboard/SecurityDashboard';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import ReportItem from './pages/items/ReportItem';
 import ItemDetail from './pages/items/ItemDetail';
@@ -21,16 +20,16 @@ import ChatView from './pages/dashboard/ChatView';
 import Profile from './pages/dashboard/Profile';
 import Settings from './pages/dashboard/Settings';
 import UserManagement from './pages/admin/UserManagement';
-import CMS from './pages/admin/CMS';
 import Reports from './pages/admin/Reports';
 import LostFoundUsers from './pages/admin/LostFoundUsers';
 import ReceivedItems from './pages/admin/ReceivedItems';
+import UserDetail from './pages/admin/UserDetail';
 
 function ProtectedRoute({ children, roles }) {
   const { isAuthenticated: auth, user, loading } = useAuth();
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" /></div>;
-  if (!auth) return <Navigate to="/login" replace />;
+  if (!auth) return <Navigate to="/" replace />;
   if (roles && !roles.includes(user?.role)) return <Navigate to="/" replace />;
   return children;
 }
@@ -107,9 +106,9 @@ export default function App() {
             <UserManagement />
           </ProtectedRoute>
         } />
-        <Route path="/admin/cms" element={
+        <Route path="/admin/users/:id" element={
           <ProtectedRoute roles={['admin']}>
-            <CMS />
+            <UserDetail />
           </ProtectedRoute>
         } />
         <Route path="/admin/reports" element={
@@ -137,6 +136,5 @@ export default function App() {
 function RoleDashboard() {
   const { user } = useAuth();
   if (user?.role === 'admin') return <AdminDashboard />;
-  if (user?.role === 'security') return <SecurityDashboard />;
   return <UserDashboard />;
 }

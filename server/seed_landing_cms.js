@@ -36,7 +36,7 @@ const seedCms = async () => {
           ]
         },
         contact: {
-          email: "support@dbu.edu.et",
+          email: "lostlinkdbu@gmail.com",
           phone: "+251 11 123 4567",
           location: "Main Campus, Admin Building, Room 204"
         }
