@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { items as itemsApi, matches as matchesApi } from '../../services/api';
 import toast from 'react-hot-toast';
 import {
@@ -54,6 +55,7 @@ const MatchCard = ({ match, onChat, onViewDetails }) => (
 );
 
 export default function ReportResult() {
+  const { t } = useTranslation();
   const { itemId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -67,6 +69,8 @@ export default function ReportResult() {
   const [aiMessages, setAiMessages] = useState([]);
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [noMatchExplanation, setNoMatchExplanation] = useState(null);
+  const [explanationLoading, setExplanationLoading] = useState(false);
   const aiEndRef = useRef(null);
 
   useEffect(() => {
@@ -91,6 +95,20 @@ export default function ReportResult() {
       setLoading(false);
     }
   }, [itemId]);
+
+  useEffect(() => {
+    if (!loading && matches.length === 0 && item && !noMatchExplanation && !explanationLoading) {
+      setExplanationLoading(true);
+      itemsApi.getNoMatchExplanation(itemId)
+        .then((res) => {
+          if (res && res.data?.explanation) {
+            setNoMatchExplanation(res.data.explanation);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setExplanationLoading(false));
+    }
+  }, [loading, matches, item, itemId, noMatchExplanation, explanationLoading]);
 
   useEffect(() => { aiEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [aiMessages]);
 
@@ -120,8 +138,8 @@ export default function ReportResult() {
   if (loading) return (
     <div className="page-container max-w-3xl text-center py-20">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4" />
-      <p className="text-gray-500 text-lg">AI is analyzing your item against found items...</p>
-      <p className="text-gray-400 text-sm mt-1">Our AI matching engine is scanning for potential matches.</p>
+      <p className="text-gray-500 text-lg">{t('match.loading')}</p>
+      <p className="text-gray-400 text-sm mt-1">{t('match.loadingDesc')}</p>
     </div>
   );
 
@@ -154,18 +172,34 @@ export default function ReportResult() {
 
       {matches.length === 0 ? (
         <div className="card text-center py-12">
-          <FiAlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Strong Matches Found</h3>
-          <p className="text-gray-500 max-w-md mx-auto mb-2">
-            No found items match your lost item at 85% or above. We'll keep scanning as new items are reported.
-          </p>
-          <p className="text-gray-400 text-sm">You'll be notified immediately when a strong match is found.</p>
+          <FiCpu className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('match.noMatchesTitle')}</h3>
+
+          {explanationLoading ? (
+            <div className="py-4">
+              <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-gray-400 text-sm">{t('match.aiExplaining')}</p>
+            </div>
+          ) : noMatchExplanation ? (
+            <div className="max-w-lg mx-auto mb-4">
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-5 text-left">
+                <div className="flex items-start gap-3">
+                  <FiCpu className="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-purple-900 leading-relaxed whitespace-pre-line">{noMatchExplanation}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-500 max-w-md mx-auto mb-2">{t('match.noMatchesDefault')}</p>
+          )}
+
+          <p className="text-gray-400 text-sm">{t('match.noMatchesSubtitle')}</p>
           <div className="flex gap-3 justify-center mt-6">
             <Link to="/matches" className="btn-secondary text-sm flex items-center gap-2">
-              <FiRefreshCw className="w-4 h-4" /> View All Matches
+              <FiRefreshCw className="w-4 h-4" /> {t('match.viewAllMatches')}
             </Link>
             <Link to="/dashboard" className="btn-primary text-sm flex items-center gap-2">
-              Go to Dashboard <FiArrowRight className="w-4 h-4" />
+              {t('nav.dashboard')} <FiArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>

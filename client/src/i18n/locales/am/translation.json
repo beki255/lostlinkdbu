@@ -72,6 +72,25 @@
     "confirmDelete": "መሰረዝ መሆኑን እርግጠኛ ነህ?",
     "success": "ተሳክቷል"
   },
+  "match": {
+    "title": "AI የእቃ ተዛማጆች",
+    "subtitle": "ለእቃዎችዎ ሊመሳሰሉ የሚችሉ ተዛማጆች፣ በተመሳሳይነት ደረጃ የተደረደሩ።",
+    "noMatchesTitle": "ምንም ተዛማጅ አልተገኘም",
+    "noMatchesDefault": "AI የእቃዎን ትንታኔ አድርጓል ነገር ግን ጠንካራ ተዛማጅ አልተገኘም።",
+    "noMatchesSubtitle": "መፈለጋችንን እንቀጥላለን እና ተዛማጅ ሲገኝ እናሳውቅዎታለን።",
+    "aiExplaining": "AI ዝርዝር ትንታኔ እያዘጋጀ ነው...",
+    "methodAi": "በAI የተጎላበተ",
+    "methodLocal": "የሀገር ውስጥ አልጎሪዝም",
+    "methodNone": "ምንም",
+    "loading": "AI ተዛማጅን እያሄደ ነው...",
+    "loadingDesc": "እቃዎን ከሁሉም ከተገኙ እቃዎች ጋር በማወዳደር ላይ",
+    "strongMatch": "ጠንካራ ተዛማጅ",
+    "potentialMatch": "ሊሆን የሚችል ተዛማጅ",
+    "matchedWith": "ተዛምዷል ከ",
+    "foundAt": "የተገኘበት",
+    "backToMatches": "ወደ ተዛማጆች ተመለስ",
+    "viewAllMatches": "ሁሉንም ተዛማጆች ተመልከት"
+  },
   "role": {
     "user": "ተጠቃሚ",
     "security": "የደህንነት ኃላፊ",

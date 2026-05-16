@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { items as itemsApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import toast from 'react-hot-toast';
 import {
-  FiSearch, FiMapPin, FiCalendar, FiCpu, FiX, FiPercent,
+  FiSearch, FiMapPin, FiCalendar, FiCpu, FiPercent,
   FiShield, FiUser, FiChevronRight,
 } from 'react-icons/fi';
 
@@ -42,11 +41,6 @@ export default function ItemList() {
   const [myItems, setMyItems] = useState([]);
   const [myLoading, setMyLoading] = useState(false);
 
-  // AI Match modal state
-  const [aiModal, setAiModal] = useState(null);
-  const [aiRunning, setAiRunning] = useState(false);
-  const [aiResults, setAiResults] = useState(null);
-
   // Search effect
   useEffect(() => {
     if (tab !== 'search') return;
@@ -69,28 +63,6 @@ export default function ItemList() {
       .catch(() => setMyItems([]))
       .finally(() => setMyLoading(false));
   }, [tab]);
-
-  // AI Match
-  const runAiMatching = async (item) => {
-    setAiRunning(true);
-    setAiModal(item._id);
-    setAiResults(null);
-    try {
-      const res = await itemsApi.runAiMatching(item._id);
-      setAiResults(res.data);
-    } catch (err) {
-      setAiResults(null);
-      setAiModal(null);
-      toast.error(err.message);
-    } finally {
-      setAiRunning(false);
-    }
-  };
-
-  const closeModal = () => {
-    setAiModal(null);
-    setAiResults(null);
-  };
 
   const myLost = myItems.filter((i) => i.type === 'lost');
   const myFound = myItems.filter((i) => i.type === 'found');
@@ -287,13 +259,12 @@ export default function ItemList() {
                           </div>
                         </div>
                         <div className="pt-3 border-t border-gray-100 space-y-2">
-                          <button onClick={() => runAiMatching(item)}
-                            disabled={aiRunning && aiModal === item._id}
-                            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-sm font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          <Link to={`/matches?runAiMatch=${item._id}`}
+                            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-sm font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition-all"
                           >
                             <FiCpu className="w-4 h-4" />
-                            {aiRunning && aiModal === item._id ? 'Matching...' : 'AI Match'}
-                          </button>
+                            AI Match
+                          </Link>
                           {item.matches && item.matches.length > 0 && (
                             <Link to={`/matches/${item.matches[0]._id}`}
                               className="flex items-center justify-between text-xs text-purple-600 hover:text-purple-800 font-medium px-1"
@@ -321,18 +292,28 @@ export default function ItemList() {
                   </h2>
                   <div className="grid md:grid-cols-2 gap-4">
                     {myFound.map((item) => (
-                      <div key={item._id} className="card">
-                        <div className="flex items-start justify-between mb-3">
-                          <span className="badge badge-success">found</span>
-                          <span className={`badge ${item.status === 'open' ? 'badge-primary' : 'badge-warning'}`}>
-                            {item.status}
-                          </span>
+                      <div key={item._id} className="card flex flex-col">
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-3">
+                            <span className="badge badge-success">found</span>
+                            <span className={`badge ${item.status === 'open' ? 'badge-primary' : 'badge-warning'}`}>
+                              {item.status}
+                            </span>
+                          </div>
+                          <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">{item.title}</h3>
+                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
+                          <div className="flex items-center text-sm text-gray-500 gap-4 mb-3">
+                            <span className="flex items-center gap-1"><FiMapPin className="w-3.5 h-3.5" /> {item.location}</span>
+                            <span className="flex items-center gap-1"><FiCalendar className="w-3.5 h-3.5" /> {new Date(item.createdAt).toLocaleDateString()}</span>
+                          </div>
                         </div>
-                        <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">{item.title}</h3>
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
-                        <div className="flex items-center text-sm text-gray-500 gap-4">
-                          <span className="flex items-center gap-1"><FiMapPin className="w-3.5 h-3.5" /> {item.location}</span>
-                          <span className="flex items-center gap-1"><FiCalendar className="w-3.5 h-3.5" /> {new Date(item.createdAt).toLocaleDateString()}</span>
+                        <div className="pt-3 border-t border-gray-100">
+                          <Link to={`/matches?runAiMatch=${item._id}`}
+                            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-sm font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition-all"
+                          >
+                            <FiCpu className="w-4 h-4" />
+                            AI Match
+                          </Link>
                         </div>
                       </div>
                     ))}
@@ -342,98 +323,6 @@ export default function ItemList() {
             </div>
           )}
 
-          {/* AI Match Results Modal */}
-          {aiModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={closeModal}>
-              <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
-                  <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <FiCpu className="w-5 h-5 text-purple-600" />
-                    AI Matching Results
-                  </h2>
-                  <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg transition">
-                    <FiX className="w-5 h-5 text-gray-500" />
-                  </button>
-                </div>
-                <div className="p-6">
-                  {aiRunning ? (
-                    <div className="text-center py-12">
-                      <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4" />
-                      <p className="text-gray-600 font-medium">Running AI matching...</p>
-                      <p className="text-sm text-gray-400 mt-1">Comparing your item against all found items</p>
-                    </div>
-                  ) : aiResults ? (
-                    <div>
-                      {aiResults.matchMethod && (
-                        <div className="flex justify-end mb-4">
-                          <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
-                            Method: {aiResults.matchMethod === 'ai' ? 'AI-powered' : aiResults.matchMethod === 'local' ? 'Local algorithm' : 'None'}
-                          </span>
-                        </div>
-                      )}
-                      {aiResults.matches && aiResults.matches.length > 0 ? (
-                        <div className="space-y-4">
-                          {aiResults.matches.map((match) => {
-                            const level = matchLevel(match.score);
-                            return (
-                              <Link key={match._id} to={`/matches/${match._id}`}
-                                className={`block border-2 rounded-xl p-4 hover:shadow-md transition-shadow ${level.bg}`}
-                              >
-                                <div className="flex items-start justify-between mb-3">
-                                  <div>
-                                    <h3 className="font-semibold text-gray-900">{match.foundItem?.title || 'Unknown'}</h3>
-                                    <p className="text-sm text-gray-500 mt-0.5">
-                                      Found at {match.foundItem?.location || 'Unknown'}
-                                    </p>
-                                  </div>
-                                  <span className={`text-sm font-semibold px-2.5 py-1 rounded-full ${level.badge}`}>
-                                    {level.label}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-4 mb-3">
-                                  <div className={`text-3xl font-bold ${level.color}`}>
-                                    {Math.round(match.score)}%
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="w-full bg-gray-200 rounded-full h-3">
-                                      <div className={`h-3 rounded-full ${match.score >= 85 ? 'bg-green-500' : 'bg-yellow-500'}`}
-                                        style={{ width: `${Math.min(match.score, 100)}%` }} />
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2 text-xs">
-                                  {scoreBars.map((sb) => {
-                                    const val = match.details?.[sb.key] || 0;
-                                    return (
-                                      <div key={sb.key} className="bg-white/60 rounded-lg p-2">
-                                        <div className="text-gray-500 mb-1">{sb.label}</div>
-                                        <div className="flex items-center gap-1">
-                                          <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-                                            <div className="h-1.5 rounded-full bg-purple-500" style={{ width: `${val}%` }} />
-                                          </div>
-                                          <span className="font-medium text-gray-700 w-8 text-right">{val}%</span>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <FiCpu className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                          <h3 className="text-lg font-medium text-gray-700 mb-1">No matches found</h3>
-                          <p className="text-gray-500">No matching found items were found for this item yet.</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

@@ -34,4 +34,9 @@ router.post('/:id/ai-matches',
   itemController.runAiMatching
 );
 
+router.post('/:id/no-match-explanation',
+  authenticate,
+  itemController.getNoMatchExplanation
+);
+
 module.exports = router;

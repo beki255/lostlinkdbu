@@ -55,6 +55,7 @@ export const items = {
   update: (id, data) => api.patch(`/items/${id}`, data),
   delete: (id) => api.delete(`/items/${id}`),
   runAiMatching: (id) => api.post(`/items/${id}/ai-matches`),
+  getNoMatchExplanation: (id) => api.post(`/items/${id}/no-match-explanation`),
   search: (params) => api.get('/items/search', { params }),
 };
 

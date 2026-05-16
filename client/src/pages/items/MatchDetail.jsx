@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { matches as matchesApi, items as itemsApi } from '../../services/api';
+import { matches as matchesApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
@@ -23,7 +23,6 @@ export default function MatchDetail() {
   const { user } = useAuth();
   const [match, setMatch] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [chatId, setChatId] = useState(null);
   const [chatLoading, setChatLoading] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiMessages, setAiMessages] = useState([]);
@@ -40,13 +39,14 @@ export default function MatchDetail() {
 
   useEffect(() => { aiEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [aiMessages]);
 
+  const isLostOwner = match?.lostItem?.reportedBy?._id === user?._id;
+
   const openChat = async () => {
     setChatLoading(true);
     try {
       const res = await matchesApi.getChat(id);
       const cid = res.data.chat._id;
-      setChatId(cid);
-      navigate(`/chat/${cid}`);
+      navigate(`/chat/${cid}`, { state: { matchId: id } });
     } catch (err) {
       toast.error('Failed to open chat');
     } finally {
@@ -86,6 +86,10 @@ export default function MatchDetail() {
   const levelColor = match.score >= 85 ? 'text-green-600' : match.score >= 50 ? 'text-yellow-600' : 'text-gray-400';
   const levelBg = match.score >= 85 ? 'bg-green-50 border-green-200' : match.score >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200';
   const levelLabel = match.score >= 85 ? 'Strong Match' : match.score >= 50 ? 'Moderate Match' : 'Low Match';
+
+  const otherPartyName = isLostOwner
+    ? match.foundItem?.reportedBy?.name || 'the finder'
+    : match.lostItem?.reportedBy?.name || 'the owner';
 
   return (
     <div className="page-container max-w-4xl">
@@ -147,49 +151,79 @@ export default function MatchDetail() {
             )}
           </div>
 
-          <div className="card">
-            <h2 className="font-semibold text-gray-900 mb-4">Your Lost Item</h2>
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                <FiPercent className="w-6 h-6 text-red-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900">{match.lostItem?.title}</h3>
-                <div className="flex flex-wrap gap-3 text-sm text-gray-500 mt-1">
-                  <span className="flex items-center gap-1"><FiMapPin className="w-3 h-3" /> {match.lostItem?.location}</span>
-                  <span className="flex items-center gap-1"><FiTag className="w-3 h-3" /> {match.lostItem?.category}</span>
-                  {match.lostItem?.dateOccurred && (
-                    <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" /> {new Date(match.lostItem.dateOccurred).toLocaleDateString()}</span>
+          {isLostOwner ? (
+            <div className="card">
+              <h2 className="font-semibold text-gray-900 mb-4">Your Lost Item</h2>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <FiPercent className="w-6 h-6 text-red-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900">{match.lostItem?.title}</h3>
+                  <div className="flex flex-wrap gap-3 text-sm text-gray-500 mt-1">
+                    <span className="flex items-center gap-1"><FiMapPin className="w-3 h-3" /> {match.lostItem?.location}</span>
+                    <span className="flex items-center gap-1"><FiTag className="w-3 h-3" /> {match.lostItem?.category}</span>
+                    {match.lostItem?.dateOccurred && (
+                      <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" /> {new Date(match.lostItem.dateOccurred).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                  {match.lostItem?.description && (
+                    <p className="text-sm text-gray-600 mt-2">{match.lostItem.description}</p>
                   )}
                 </div>
-                {match.lostItem?.description && (
-                  <p className="text-sm text-gray-600 mt-2">{match.lostItem.description}</p>
-                )}
               </div>
             </div>
-          </div>
-
-          <div className="card">
-            <h2 className="font-semibold text-gray-900 mb-4">Found Item</h2>
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                <FiPercent className="w-6 h-6 text-green-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900">{match.foundItem?.title}</h3>
-                <div className="flex flex-wrap gap-3 text-sm text-gray-500 mt-1">
-                  <span className="flex items-center gap-1"><FiMapPin className="w-3 h-3" /> {match.foundItem?.location}</span>
-                  <span className="flex items-center gap-1"><FiTag className="w-3 h-3" /> {match.foundItem?.category}</span>
-                  {match.foundItem?.dateOccurred && (
-                    <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" /> {new Date(match.foundItem.dateOccurred).toLocaleDateString()}</span>
+          ) : (
+            <div className="card">
+              <h2 className="font-semibold text-gray-900 mb-4">Your Found Report</h2>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <FiPercent className="w-6 h-6 text-green-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900">{match.foundItem?.title}</h3>
+                  <div className="flex flex-wrap gap-3 text-sm text-gray-500 mt-1">
+                    <span className="flex items-center gap-1"><FiMapPin className="w-3 h-3" /> {match.foundItem?.location}</span>
+                    <span className="flex items-center gap-1"><FiTag className="w-3 h-3" /> {match.foundItem?.category}</span>
+                    {match.foundItem?.dateOccurred && (
+                      <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" /> {new Date(match.foundItem.dateOccurred).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                  {match.foundItem?.description && (
+                    <p className="text-sm text-gray-600 mt-2">{match.foundItem.description}</p>
                   )}
                 </div>
-                {match.foundItem?.description && (
-                  <p className="text-sm text-gray-600 mt-2">{match.foundItem.description}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="card">
+            <h2 className="font-semibold text-gray-900 mb-4">{isLostOwner ? 'Found Item' : 'Lost Item'}</h2>
+            <div className="flex items-start gap-4">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${isLostOwner ? 'bg-green-100' : 'bg-red-100'}`}>
+                <FiPercent className={`w-6 h-6 ${isLostOwner ? 'text-green-500' : 'text-red-500'}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900">
+                  {isLostOwner ? match.foundItem?.title : match.lostItem?.title}
+                </h3>
+                <div className="flex flex-wrap gap-3 text-sm text-gray-500 mt-1">
+                  <span className="flex items-center gap-1"><FiMapPin className="w-3 h-3" /> {isLostOwner ? match.foundItem?.location : match.lostItem?.location}</span>
+                  <span className="flex items-center gap-1"><FiTag className="w-3 h-3" /> {isLostOwner ? match.foundItem?.category : match.lostItem?.category}</span>
+                  {(isLostOwner ? match.foundItem?.dateOccurred : match.lostItem?.dateOccurred) && (
+                    <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" /> {new Date((isLostOwner ? match.foundItem?.dateOccurred : match.lostItem?.dateOccurred)).toLocaleDateString()}</span>
+                  )}
+                </div>
+                {(isLostOwner ? match.foundItem?.description : match.lostItem?.description) && (
+                  <p className="text-sm text-gray-600 mt-2">{isLostOwner ? match.foundItem?.description : match.lostItem?.description}</p>
                 )}
-                {match.foundItem?.reportedBy && (
+                {(isLostOwner ? match.foundItem?.reportedBy : match.lostItem?.reportedBy) && (
                   <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
-                    <FiUser className="w-3 h-3" /> Found by: {match.foundItem.reportedBy.name} &middot; {match.foundItem.reportedBy.department || ''}
+                    <FiUser className="w-3 h-3" />
+                    {isLostOwner
+                      ? `Found by: ${match.foundItem?.reportedBy?.name}${match.foundItem?.reportedBy?.department ? ` · ${match.foundItem.reportedBy.department}` : ''}`
+                      : `Reported by: ${match.lostItem?.reportedBy?.name}${match.lostItem?.reportedBy?.department ? ` · ${match.lostItem.reportedBy.department}` : ''}`
+                    }
                   </p>
                 )}
               </div>
@@ -204,7 +238,7 @@ export default function MatchDetail() {
               <button onClick={openChat} disabled={chatLoading}
                 className="btn-primary w-full flex items-center justify-center gap-2">
                 <FiMessageCircle className="w-4 h-4" />
-                {chatLoading ? 'Opening...' : 'Chat with Finder'}
+                {chatLoading ? 'Opening...' : `Chat with ${otherPartyName}`}
               </button>
 
               <button onClick={() => updateStatus('contacted')}

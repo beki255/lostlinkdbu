@@ -2,6 +2,7 @@ const Item = require('../models/Item');
 const Match = require('../models/Match');
 const AuditLog = require('../models/AuditLog');
 const matchingService = require('../services/matchingService');
+const aiService = require('../services/aiService');
 const { paginate, buildPaginationResponse, sanitizeHtml } = require('../utils/helpers');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/response');
 const { AppError, NotFoundError, ForbiddenError } = require('../utils/errors');
@@ -47,8 +48,7 @@ exports.createItem = async (req, res, next) => {
     let matchMethod = 'none';
 
     if (item.type === 'lost') {
-      const language = req.headers['accept-language'] || req.body.language || 'en';
-      const result = await matchingService.runMatchingForLostItem(item._id, language);
+      const result = await matchingService.runMatchingForLostItem(item._id);
       matches = result.matches;
       matchMethod = result.method;
     } else if (item.type === 'found') {
@@ -256,15 +256,19 @@ exports.runAiMatching = async (req, res, next) => {
   try {
     const item = await Item.findOne({ _id: req.params.id, isDeleted: false });
     if (!item) throw new NotFoundError('Item');
-    if (item.type !== 'lost') {
-      throw new AppError('AI matching is only available for lost items.', 400);
-    }
     if (item.reportedBy.toString() !== req.user._id.toString()) {
       throw new ForbiddenError('You can only run AI matching on your own items.');
     }
 
-    const language = req.headers['accept-language'] || 'en';
-    const result = await matchingService.runMatchingForLostItem(item._id, language);
+    let result;
+
+    if (item.type === 'lost') {
+      result = await matchingService.runMatchingForLostItem(item._id);
+    } else if (item.type === 'found') {
+      result = await matchingService.runMatching(item._id);
+    } else {
+      throw new AppError('Invalid item type.', 400);
+    }
 
     await AuditLog.create({
       action: 'AI_MATCHING_RUN',
@@ -280,6 +284,28 @@ exports.runAiMatching = async (req, res, next) => {
       matches: result.matches,
       matchMethod: result.method,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getNoMatchExplanation = async (req, res, next) => {
+  try {
+    const item = await Item.findOne({ _id: req.params.id, isDeleted: false });
+    if (!item) throw new NotFoundError('Item');
+    if (item.reportedBy.toString() !== req.user._id.toString()) {
+      throw new ForbiddenError('You can only view explanations for your own items.');
+    }
+
+    const lang = req.headers['accept-language'] || 'en';
+
+    const aiResult = await aiService.generateNoMatchExplanation(item, lang);
+    if (aiResult && aiResult.explanation) {
+      return sendSuccess(res, { explanation: aiResult.explanation, source: 'ai' });
+    }
+
+    const explanation = aiService.generateLocalNoMatchExplanation(item, lang);
+    sendSuccess(res, { explanation, source: 'local' });
   } catch (error) {
     next(error);
   }

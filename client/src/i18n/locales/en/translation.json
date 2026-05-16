@@ -72,6 +72,25 @@
     "confirmDelete": "Are you sure you want to delete?",
     "success": "Success"
   },
+  "match": {
+    "title": "AI Item Matches",
+    "subtitle": "Potential matches for your items, ranked by similarity.",
+    "noMatchesTitle": "No Matches Found",
+    "noMatchesDefault": "Our AI analyzed your item but no strong matches were found yet.",
+    "noMatchesSubtitle": "We'll keep scanning and notify you when a potential match appears.",
+    "aiExplaining": "AI is generating a detailed analysis...",
+    "methodAi": "AI-powered",
+    "methodLocal": "Local algorithm",
+    "methodNone": "None",
+    "loading": "Running AI matching...",
+    "loadingDesc": "Comparing your item against all found items",
+    "strongMatch": "Strong Match",
+    "potentialMatch": "Potential Match",
+    "matchedWith": "Matched with",
+    "foundAt": "Found at",
+    "backToMatches": "Back to Matches",
+    "viewAllMatches": "View All Matches"
+  },
   "role": {
     "user": "User",
     "security": "Security Officer",

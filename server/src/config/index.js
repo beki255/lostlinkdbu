@@ -27,12 +27,9 @@ const config = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   },
 
-  ai: {
-    serviceUrl: process.env.AI_SERVICE_URL || 'http://localhost:5001',
-    apiKey: process.env.AI_API_KEY,
-    model: process.env.AI_MODEL || 'gpt-4',
-    temperature: parseFloat(process.env.AI_TEMPERATURE) || 0.2,
-    maxTokens: parseInt(process.env.AI_MAX_TOKENS, 10) || 2000,
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY,
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
   },
 
   upload: {
