@@ -1,6 +1,11 @@
+let mockUploadFiles = [{ path: 'http://res.cloudinary.com/test.jpg' }];
 jest.mock('../middleware/upload', () => ({
-  array: jest.fn(() => (req, res, next) => next()),
+  array: jest.fn(() => (req, res, next) => {
+    req.files = mockUploadFiles;
+    next();
+  }),
 }));
+const setUploadFiles = (files) => { mockUploadFiles = files; };
 
 const request = require('supertest');
 const mongoose = require('mongoose');
@@ -208,6 +213,17 @@ describe('POST /api/items - Report Lost/Found Item', () => {
 
       expect(res.status).toBe(201);
       expect(res.body.data.item.type).toBe('found');
+    });
+
+    it('should return 400 when reporting a found item without an image', async () => {
+      setUploadFiles([]);
+      const res = await request(app)
+        .post('/api/items')
+        .set('Authorization', authHeader)
+        .send({ ...validItemPayload, type: 'found' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/image is required/i);
     });
   });
 

@@ -16,12 +16,15 @@ const validateField = (name, value) => {
   return '';
 };
 
-const validateForm = (form) => {
+const validateForm = (form, files) => {
   const errors = {};
   const fields = ['title', 'description', 'category', 'location'];
   for (const field of fields) {
     const err = validateField(field, form[field]);
     if (err) errors[field] = err;
+  }
+  if (form.type === 'found' && files.length === 0) {
+    errors.images = 'An image is required when reporting a found item.';
   }
   return errors;
 };
@@ -46,7 +49,7 @@ export default function ReportItem() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const validation = validateForm(form);
+    const validation = validateForm(form, files);
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
       toast.error('Please fix the highlighted fields');
@@ -153,23 +156,28 @@ export default function ReportItem() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Images</label>
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-primary-400 transition cursor-pointer"
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Images {form.type === 'found' && <span className="text-red-500">*</span>}
+            </label>
+            <div className={`border-2 border-dashed rounded-xl p-6 text-center transition cursor-pointer ${
+              errors.images ? 'border-red-400 bg-red-50' : 'border-gray-300 hover:border-primary-400'
+            }`}
               onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); setFiles([...files, ...Array.from(e.dataTransfer.files)]); }}>
+              onDrop={(e) => { e.preventDefault(); setFiles([...files, ...Array.from(e.dataTransfer.files)]); if (errors.images) setErrors({ ...errors, images: '' }); }}>
               <FiUpload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
               <p className="text-sm text-gray-500">Drag & drop images here, or <span className="text-primary-600 font-medium">browse</span></p>
               <input type="file" multiple accept="image/*" className="hidden"
-                onChange={(e) => setFiles([...files, ...Array.from(e.target.files)])} id="file-upload" />
+                onChange={(e) => { setFiles([...files, ...Array.from(e.target.files)]); if (errors.images) setErrors({ ...errors, images: '' }); }} id="file-upload" />
               <button type="button" onClick={() => document.getElementById('file-upload').click()}
                 className="mt-3 text-sm text-primary-600 font-medium">Choose Files</button>
             </div>
+            {errors.images && <p className="mt-1 text-sm text-red-500">{errors.images}</p>}
             {files.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {Array.from(files).map((f, i) => (
                   <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-sm">
                     {f.name}
-                    <button type="button" onClick={() => setFiles(files.filter((_, idx) => idx !== i))}>
+                    <button type="button" onClick={() => { const updated = files.filter((_, idx) => idx !== i); setFiles(updated); if (form.type === 'found' && updated.length === 0) setErrors({ ...errors, images: 'An image is required when reporting a found item.' }); }}>
                       <FiX className="w-4 h-4 text-gray-500 hover:text-red-500" />
                     </button>
                   </div>

@@ -1,4 +1,5 @@
 const Item = require('../models/Item');
+const Match = require('../models/Match');
 const AuditLog = require('../models/AuditLog');
 const matchingService = require('../services/matchingService');
 const { paginate, buildPaginationResponse, sanitizeHtml } = require('../utils/helpers');
@@ -25,6 +26,11 @@ exports.createItem = async (req, res, next) => {
 
     if (typeof itemData.tags === 'string') {
       itemData.tags = itemData.tags.split(',').map(t => t.trim()).filter(Boolean);
+    }
+
+    // Found items require at least one image
+    if (itemData.type === 'found' && (!req.files || req.files.length === 0)) {
+      throw new AppError('An image is required when reporting a found item.', 400);
     }
 
     if (req.files && req.files.length > 0) {
@@ -74,12 +80,11 @@ exports.getItems = async (req, res, next) => {
     const { page, limit, skip } = paginate(req.query.page, req.query.limit);
     const filter = { isDeleted: false };
 
-    // Users can only see public items + their own
-    if (req.user && req.user.role === 'user') {
-      filter.$or = [
-        { visibility: 'public' },
-        { reportedBy: req.user._id },
-      ];
+    // Privacy: users can only see their own reported items
+    if (req.user) {
+      filter.reportedBy = req.user._id;
+    } else {
+      return sendPaginated(res, { items: [] }, buildPaginationResponse(0, page, limit));
     }
 
     if (req.query.type) filter.type = req.query.type;
@@ -98,7 +103,24 @@ exports.getItems = async (req, res, next) => {
       Item.countDocuments(filter),
     ]);
 
-    sendPaginated(res, { items }, buildPaginationResponse(total, page, limit));
+    // Include AI matches for each lost item
+    const itemsWithMatches = await Promise.all(items.map(async (item) => {
+      if (item.type === 'lost') {
+        const matches = await Match.find({
+          lostItem: item._id,
+          score: { $gte: 70 },
+        })
+          .populate('foundItem', 'title description category location images dateOccurred')
+          .select('score details aiExplanation foundItem')
+          .sort({ score: -1 })
+          .limit(5)
+          .lean();
+        return { ...item.toObject(), matches };
+      }
+      return item.toObject();
+    }));
+
+    sendPaginated(res, { items: itemsWithMatches }, buildPaginationResponse(total, page, limit));
   } catch (error) {
     next(error);
   }
@@ -113,12 +135,45 @@ exports.getItem = async (req, res, next) => {
 
     if (!item) throw new NotFoundError('Item');
 
-    // Security check: users can only view public items or their own
+    // Public lost items are visible to all users; private found items are restricted
     if (req.user && req.user.role === 'user' && item.visibility === 'private' && !item.reportedBy._id.equals(req.user._id)) {
       throw new ForbiddenError('You do not have access to this item.');
     }
 
     sendSuccess(res, { item });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.searchItems = async (req, res, next) => {
+  try {
+    const { page, limit, skip } = paginate(req.query.page, req.query.limit);
+    const filter = { isDeleted: false, type: 'lost' };
+
+    // Exclude the current user's own items from search results
+    if (req.user) {
+      filter.reportedBy = { $ne: req.user._id };
+    }
+
+    if (req.query.q) {
+      filter.$text = { $search: req.query.q };
+    }
+    if (req.query.category) {
+      filter.category = req.query.category;
+    }
+
+    const [items, total] = await Promise.all([
+      Item.find(filter)
+        .populate('reportedBy', 'name department')
+        .select('title description category location dateOccurred createdAt images reportedBy')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Item.countDocuments(filter),
+    ]);
+
+    sendPaginated(res, { items }, buildPaginationResponse(total, page, limit));
   } catch (error) {
     next(error);
   }
