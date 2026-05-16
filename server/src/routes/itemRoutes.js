@@ -31,4 +31,9 @@ router.delete('/:id',
   itemController.deleteItem
 );
 
+router.post('/:id/ai-matches',
+  authenticate,
+  itemController.runAiMatching
+);
+
 module.exports = router;

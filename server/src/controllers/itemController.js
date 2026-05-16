@@ -3,7 +3,7 @@ const AuditLog = require('../models/AuditLog');
 const matchingService = require('../services/matchingService');
 const { paginate, buildPaginationResponse, sanitizeHtml } = require('../utils/helpers');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/response');
-const { NotFoundError, ForbiddenError } = require('../utils/errors');
+const { AppError, NotFoundError, ForbiddenError } = require('../utils/errors');
 
 const sanitizeFields = (obj) => {
   const textFields = ['title', 'description', 'category', 'location', 'building', 'room'];
@@ -192,6 +192,39 @@ exports.deleteItem = async (req, res, next) => {
     });
 
     sendSuccess(res, null, 'Item deleted.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.runAiMatching = async (req, res, next) => {
+  try {
+    const item = await Item.findOne({ _id: req.params.id, isDeleted: false });
+    if (!item) throw new NotFoundError('Item');
+    if (item.type !== 'lost') {
+      throw new AppError('AI matching is only available for lost items.', 400);
+    }
+    if (item.reportedBy.toString() !== req.user._id.toString()) {
+      throw new ForbiddenError('You can only run AI matching on your own items.');
+    }
+
+    const language = req.headers['accept-language'] || 'en';
+    const result = await matchingService.runMatchingForLostItem(item._id, language);
+
+    await AuditLog.create({
+      action: 'AI_MATCHING_RUN',
+      resource: 'Item',
+      resourceId: item._id,
+      performedBy: req.user._id,
+      performedByRole: req.user.role,
+      changes: { matchMethod: result.method, matchCount: result.matches.length },
+      ipAddress: req.ip,
+    });
+
+    sendSuccess(res, {
+      matches: result.matches,
+      matchMethod: result.method,
+    });
   } catch (error) {
     next(error);
   }

@@ -54,6 +54,7 @@ export const items = {
   create: (data) => api.post('/items', data),
   update: (id, data) => api.patch(`/items/${id}`, data),
   delete: (id) => api.delete(`/items/${id}`),
+  runAiMatching: (id) => api.post(`/items/${id}/ai-matches`),
 };
 
 export const claims = {
